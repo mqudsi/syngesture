@@ -4,8 +4,39 @@ const MAX_TAP_DISTANCE: f32 = 2.0f32;
 /// The maximum number of tools (fingers) that are tracked and reported on simultaneously.
 const MAX_SLOTS: usize = 5;
 
+pub(crate) struct EventLoop {
+    report: SynReport,
+    state: TouchpadState,
+}
+
+impl EventLoop {
+    pub fn new() -> Self {
+        Self {
+            report: Default::default(),
+            state: Default::default(),
+        }
+    }
+
+    pub fn add_event(&mut self, time: f32, event_type: u8, event_code: u16, event_value: i32) {
+        let event_type: EventType = unsafe { std::mem::transmute(event_type) };
+        let event_code: EventCode = unsafe { std::mem::transmute(event_code) };
+
+        self.report.events.push(SynEvent {
+            time,
+            evt_type: event_type,
+            code: event_code,
+            value: event_value,
+        });
+    }
+
+    pub fn update(&mut self) {
+        self.state.update(&self.report)
+    }
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
+#[repr(u8)]
 enum EventType {
     /// Unknown
     EV_SYN = 0,
@@ -18,6 +49,7 @@ enum EventType {
 // values), just keep them in one enum for our own sanity.
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
+#[repr(u16)]
 enum EventCode {
     // Absolute Events (reported per-tool)
     /// The overall x location, not differentiated by slot.
@@ -55,6 +87,7 @@ enum Direction {
     Right,
 }
 
+#[derive(Clone, Debug)]
 enum Fingers {
     One = 1,
     Two = 2,
@@ -64,6 +97,7 @@ enum Fingers {
 
 // Used to abstract away the event source. In the future, we can migrate from
 // using evtest to reading from the input device directly.
+#[derive(Debug)]
 struct SynEvent {
     time: f32,
     evt_type: EventType,
@@ -73,12 +107,13 @@ struct SynEvent {
 
 /// A grouping of [`SynEvent`] objects that arrive together in one report.
 /// Each individual `SynEvent` still has its own timestamp.
+#[derive(Debug, Default)]
 struct SynReport {
     events: Vec<SynEvent>,
 }
 
 /// A result derived from one or more [`SynReport`] instances in a stream.
-pub(crate) enum Gesture {
+enum Gesture {
     Tap(Fingers),
     Swipe(Fingers, Direction),
 }
@@ -124,6 +159,7 @@ fn get_direction(pos1: &Position, pos2: &Position) -> Direction {
 /// not affect the state of any other tool/slot.
 ///
 /// `TouchpadState` tracks the status of all slots.
+#[derive(Debug, Default)]
 struct TouchpadState {
     pub slot_states: [Option<SlotState>; MAX_SLOTS],
     pub start_xy: Option<Position>,
@@ -185,7 +221,7 @@ impl TouchpadState {
         self.four_finger_duration = 0f32;
     }
 
-    pub fn update(&mut self, report: SynReport) {
+    pub fn update(&mut self, report: &SynReport) {
         let mut reset = false;
         let mut overall_x = None;
         let mut overall_y = None;
