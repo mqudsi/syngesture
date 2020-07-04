@@ -303,10 +303,12 @@ impl TouchpadState {
                         prev_finger = self.last_finger.replace(Fingers::Two);
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_TRIPLETAP) if event.value == 1 => {
+                        eprintln!("three finger press");
                         self.finger_start = Some(event.time);
                         prev_finger = self.last_finger.replace(Fingers::Three);
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_QUINTTAP) if event.value == 1 => {
+                        eprintln!("four finger press");
                         self.finger_start = Some(event.time);
                         prev_finger = self.last_finger.replace(Fingers::Four);
                     }
@@ -390,6 +392,9 @@ impl TouchpadState {
                 return Some(gesture);
             }
         }
+        else {
+            eprintln!("Remaining finger(s): {:?}", self.last_finger);
+        }
 
         return None;
     }
@@ -446,8 +451,10 @@ impl TouchpadState {
         if self.last_ts - self.last_gesture_time > DEBOUNCE_TIME {
             self.last_gesture_time = self.last_ts;
             if distance < MAX_TAP_DISTANCE {
+                eprintln!("tap detected");
                 Some(Gesture::Tap(finger))
             } else {
+                eprintln!("gesture detected");
                 Some(Gesture::Swipe(
                     finger,
                     get_direction(

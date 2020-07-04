@@ -50,25 +50,29 @@ fn swipe_handler(gesture: Gesture) {
     println!("{:?}", gesture);
 
     match gesture {
+        Gesture::Tap(Fingers::Three) => {
+            xdotool("click", "2");
+        }
         Gesture::Swipe(Fingers::Three, Direction::Right) => {
             // Intent: navigate forward. Map to alt+right.
-            send_key("alt+Right");
+            xdotool("key", "alt+Right");
         }
         Gesture::Swipe(Fingers::Three, Direction::Left) => {
             // Intent: navigate backward. Map to alt+left.
-            send_key("alt+Left");
+            xdotool("key", "alt+Left");
         }
         _ => {}
     }
 }
 
-fn send_key(key: &str) {
+fn xdotool(command: &str, actions: &str) {
     use std::thread;
 
-    let key = String::from(key);
+    let command = String::from(command);
+    let actions = String::from(actions);
     thread::spawn(move || {
         Command::new("xdotool")
-            .args(&["key", &key])
+            .args(&[command, actions])
             .output()
             .expect("Failed to run xdotool");
     });
