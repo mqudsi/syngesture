@@ -96,7 +96,7 @@ pub(crate) enum Direction {
     Right,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Copy)]
 pub(crate) enum Fingers {
     One = 1,
     Two = 2,
@@ -235,6 +235,7 @@ impl TouchpadState {
 
     pub fn update(&mut self, report: &mut SynReport) -> Option<Gesture> {
         let mut reset = false;
+        let mut prev_finger = None;
         let mut overall_x = None;
         let mut overall_y = None;
 
@@ -294,20 +295,20 @@ impl TouchpadState {
                     (EventType::EV_KEY, EventCode::BTN_TOOL_FINGER) if event.value == 1 => {
                         eprintln!("one finger press");
                         self.finger_start = Some(event.time);
-                        self.last_finger = Some(Fingers::One);
+                        prev_finger = self.last_finger.replace(Fingers::One);
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_DOUBLETAP) if event.value == 1 => {
                         eprintln!("two finger press");
                         self.finger_start = Some(event.time);
-                        self.last_finger = Some(Fingers::Two);
+                        prev_finger = self.last_finger.replace(Fingers::Two);
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_TRIPLETAP) if event.value == 1 => {
                         self.finger_start = Some(event.time);
-                        self.last_finger = Some(Fingers::Three);
+                        prev_finger = self.last_finger.replace(Fingers::Three);
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_QUINTTAP) if event.value == 1 => {
                         self.finger_start = Some(event.time);
-                        self.last_finger = Some(Fingers::Four);
+                        prev_finger = self.last_finger.replace(Fingers::Four);
                     }
 
                     // Finger state removed
@@ -369,8 +370,17 @@ impl TouchpadState {
             return None;
         }
 
-        if let (Some(x), Some(y)) = (overall_x.take(), overall_y.take()) {
-            self.push_position(x, y);
+        // We always consider a decrease in tool count to be a tear-down and ignore the change in
+        // position.
+        if self.last_finger.is_some()
+            && (prev_finger.is_none()
+                || prev_finger.as_ref().unwrap() > self.last_finger.as_ref().unwrap())
+        {
+            if let (Some(x), Some(y)) = (overall_x.take(), overall_y.take()) {
+                self.push_position(x, y);
+            }
+        } else {
+            eprintln!("position ignore")
         }
 
         if self.last_finger.is_none() {
@@ -431,7 +441,8 @@ impl TouchpadState {
 
         eprintln!("Distance: {}", distance);
 
-        dbg!( self.last_ts); dbg!(self.last_gesture_time);
+        dbg!(self.last_ts);
+        dbg!(self.last_gesture_time);
         if self.last_ts - self.last_gesture_time > DEBOUNCE_TIME {
             self.last_gesture_time = self.last_ts;
             if distance < MAX_TAP_DISTANCE {

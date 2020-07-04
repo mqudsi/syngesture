@@ -1,9 +1,9 @@
 mod events;
 
+use events::{Direction, EventLoop, Fingers, Gesture};
 use regex::Regex;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
-use events::{Gesture, EventLoop, Direction, Fingers};
 
 fn main() {
     let mut event_loop = EventLoop::new();
@@ -58,7 +58,7 @@ fn swipe_handler(gesture: Gesture) {
             // Intent: navigate backward. Map to alt+left.
             send_key("alt+Left");
         }
-        _ => {},
+        _ => {}
     }
 }
 
