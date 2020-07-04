@@ -2,13 +2,10 @@
 
 /// The maximum travel before a tap is considered a swipe, in millimeters.
 const MAX_TAP_DISTANCE: f64 = 200f64;
-
 /// The maximum number of tools (fingers) that are tracked and reported on simultaneously.
 const MAX_SLOTS: usize = 5;
-
 /// How long before the event state resets
 const EVENT_TIMEOUT: f64 = 10_593_665_152f64;
-
 /// A new gesture (note: not a new report) will not be entertained in this timespan.
 const DEBOUNCE_TIME: f64 = 0.1f64;
 
