@@ -40,7 +40,7 @@ fn main() {
             let code: u16 = captures[3].parse().unwrap();
             let value: i32 = captures[4].parse().unwrap();
 
-            eprintln!("{}", line);
+            // eprintln!("{}", line);
             event_loop.add_event(time, event_type, code, value);
         }
     }

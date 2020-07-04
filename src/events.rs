@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 /// The maximum travel before a tap is considered a swipe, in millimeters.
-const MAX_TAP_DISTANCE: f64 = 200f64;
+const MAX_TAP_DISTANCE: f64 = 100f64;
 /// The maximum number of tools (fingers) that are tracked and reported on simultaneously.
 const MAX_SLOTS: usize = 5;
 /// How long before the event state resets
@@ -144,7 +144,8 @@ fn get_distance(pos1: &Position, pos2: &Position) -> f64 {
 }
 
 fn get_direction(pos1: &Position, pos2: &Position) -> Direction {
-    if (pos2.x - pos1.x).abs() > (pos2.y - pos1.y).abs() {
+    // It's much easier to scroll side-to-side than up-down, so include a bias
+    if (pos2.x - pos1.x).abs() > ((1.15f64 * (pos2.y - pos1.y) as f64) as i32).abs() {
         // Interpret as movement along the x-axis only
         if pos2.x > pos1.x {
             Direction::Right
