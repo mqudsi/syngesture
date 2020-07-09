@@ -40,7 +40,7 @@ fn main() {
             let code: u16 = captures[3].parse().unwrap();
             let value: i32 = captures[4].parse().unwrap();
 
-            // eprintln!("{}", line);
+            eprintln!("{}", line);
             event_loop.add_event(time, event_type, code, value);
         }
     }
@@ -50,9 +50,9 @@ fn swipe_handler(gesture: Gesture) {
     println!("{:?}", gesture);
 
     match gesture {
-        Gesture::Tap(Fingers::Three) => {
-            xdotool("click", "2");
-        }
+        // Gesture::Tap(Fingers::Three) => {
+        //     xdotool("click", "2");
+        // }
         Gesture::Swipe(Fingers::Three, Direction::Right) => {
             // Intent: navigate forward. Map to alt+right.
             xdotool("key", "alt+Right");
@@ -60,6 +60,22 @@ fn swipe_handler(gesture: Gesture) {
         Gesture::Swipe(Fingers::Three, Direction::Left) => {
             // Intent: navigate backward. Map to alt+left.
             xdotool("key", "alt+Left");
+        }
+        Gesture::Swipe(Fingers::Four, Direction::Left) => {
+            // Intent: previous virtual desktop. Map to winkey+left.
+            xdotool("key", "Super_L+Left");
+        }
+        Gesture::Swipe(Fingers::Four, Direction::Right) => {
+            // Intent: next virtual desktop. Map to winkey+right.
+            xdotool("key", "Super_L+Right");
+        }
+        Gesture::Swipe(Fingers::Four, Direction::Down) => {
+            // Intent: enter multitasking view. Map to winkey+down.
+            xdotool("key", "Super_L+Down");
+        }
+        Gesture::Swipe(Fingers::Four, Direction::Up) => {
+            // Intent: leave multitasking view. Map to winkey+down.
+            xdotool("key", "Super_L+Down");
         }
         _ => {}
     }

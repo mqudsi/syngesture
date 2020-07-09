@@ -7,7 +7,7 @@ const MAX_SLOTS: usize = 5;
 /// How long before the event state resets
 const EVENT_TIMEOUT: f64 = 10_593_665_152f64;
 /// A new gesture (note: not a new report) will not be entertained in this timespan.
-const DEBOUNCE_TIME: f64 = 0.1f64;
+const DEBOUNCE_TIME: f64 = 0.2f64;
 
 pub(crate) struct EventLoop {
     report: SynReport,
@@ -35,7 +35,7 @@ impl EventLoop {
     }
 
     pub fn update(&mut self) -> Option<Gesture> {
-        eprintln!("Processing report with {} events", self.report.events.len());
+        // eprintln!("Processing report with {} events", self.report.events.len());
         let result = self.state.update(&mut self.report);
         self.report.events.clear();
         return result;
@@ -80,11 +80,11 @@ enum EventCode {
     // Key Events (reported globally)
     BTN_LEFT = 272,
     BTN_TOOL_FINGER = 325,
-    BTN_TOOL_QUINTTAP = 328,
     BTN_TOUCH = 330,
     BTN_TOOL_DOUBLETAP = 333,
     BTN_TOOL_TRIPLETAP = 334,
     BTN_TOOL_QUADTAP = 335,
+    BTN_TOOL_QUINTTAP = 328,
 }
 
 #[derive(Debug, PartialEq)]
@@ -145,7 +145,7 @@ fn get_distance(pos1: &Position, pos2: &Position) -> f64 {
 
 fn get_direction(pos1: &Position, pos2: &Position) -> Direction {
     // It's much easier to scroll side-to-side than up-down, so include a bias
-    if (pos2.x - pos1.x).abs() > ((1.15f64 * (pos2.y - pos1.y) as f64) as i32).abs() {
+    if (pos2.x - pos1.x).abs() > ((1.05f64 * (pos2.y - pos1.y) as f64) as i32).abs() {
         // Interpret as movement along the x-axis only
         if pos2.x > pos1.x {
             Direction::Right
@@ -174,6 +174,7 @@ struct TouchpadState {
     pub end_xy: Option<Position>,
     pub last_ts: f64,
     pub last_gesture_time: f64,
+    pub max_finger: Option<Fingers>,
     pub last_finger: Option<Fingers>,
     pub finger_start: Option<f64>,
     pub one_finger_duration: f64,
@@ -225,6 +226,7 @@ impl TouchpadState {
         self.end_xy = None;
         // self.last_gesture_time should not be reset!
         // self.last_gesture_time = 0f64;
+        self.max_finger = None;
         self.last_finger = None;
         self.finger_start = None;
         self.one_finger_duration = 0f64;
@@ -235,7 +237,6 @@ impl TouchpadState {
 
     pub fn update(&mut self, report: &mut SynReport) -> Option<Gesture> {
         let mut reset = false;
-        let mut prev_finger = None;
         let mut overall_x = None;
         let mut overall_y = None;
 
@@ -295,22 +296,22 @@ impl TouchpadState {
                     (EventType::EV_KEY, EventCode::BTN_TOOL_FINGER) if event.value == 1 => {
                         eprintln!("one finger press");
                         self.finger_start = Some(event.time);
-                        prev_finger = self.last_finger.replace(Fingers::One);
+                        self.last_finger.replace(Fingers::One);
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_DOUBLETAP) if event.value == 1 => {
                         eprintln!("two finger press");
                         self.finger_start = Some(event.time);
-                        prev_finger = self.last_finger.replace(Fingers::Two);
+                        self.last_finger.replace(Fingers::Two);
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_TRIPLETAP) if event.value == 1 => {
                         eprintln!("three finger press");
                         self.finger_start = Some(event.time);
-                        prev_finger = self.last_finger.replace(Fingers::Three);
+                        self.last_finger.replace(Fingers::Three);
                     }
-                    (EventType::EV_KEY, EventCode::BTN_TOOL_QUINTTAP) if event.value == 1 => {
+                    (EventType::EV_KEY, EventCode::BTN_TOOL_QUADTAP) if event.value == 1 => {
                         eprintln!("four finger press");
                         self.finger_start = Some(event.time);
-                        prev_finger = self.last_finger.replace(Fingers::Four);
+                        self.last_finger.replace(Fingers::Four);
                     }
 
                     // Finger state removed
@@ -345,7 +346,7 @@ impl TouchpadState {
                         }
                         self.last_finger = None;
                     }
-                    (EventType::EV_KEY, EventCode::BTN_TOOL_QUINTTAP) if event.value == 0 => {
+                    (EventType::EV_KEY, EventCode::BTN_TOOL_QUADTAP) if event.value == 0 => {
                         if let Some(finger_start) = prev_finger_start {
                             eprintln!(
                                 "four finger remove {}",
@@ -372,18 +373,30 @@ impl TouchpadState {
             return None;
         }
 
-        // We always consider a decrease in tool count to be a tear-down and ignore the change in
-        // position.
-        if self.last_finger.is_some()
-            && (prev_finger.is_none()
-                || prev_finger.as_ref().unwrap() > self.last_finger.as_ref().unwrap())
-        {
-            if let (Some(x), Some(y)) = (overall_x.take(), overall_y.take()) {
-                self.push_position(x, y);
-            }
-        } else {
-            eprintln!("position ignore")
+        if self.max_finger.is_none() || self.last_finger > self.max_finger {
+            // Reset start position because everything until now was presumably building to this
+            self.start_xy = None;
+            self.max_finger = self.last_finger;
         }
+
+        if let (Some(x), Some(y)) = (overall_x.take(), overall_y.take()) {
+            // We always consider a decrease in tool count to be a tear-down and ignore the change
+            // in position.
+            if self.max_finger == self.last_finger {
+                self.push_position(x, y);
+            } else {
+                eprintln!("Position ignored");
+            }
+        }
+        // if prev_finger.is_none()
+        //     || prev_finger.as_ref().unwrap() > self.last_finger.as_ref().unwrap())
+        // {
+        //     if let (Some(x), Some(y)) = (overall_x.take(), overall_y.take()) {
+        //         self.push_position(x, y);
+        //     }
+        // } else {
+        //     eprintln!("position ignore")
+        // }
 
         if self.last_finger.is_none() {
             // if self.slot_states.iter().all(|slot| slot.is_none() || slot.as_ref().unwrap().complete) {
@@ -391,8 +404,7 @@ impl TouchpadState {
                 self.reset();
                 return Some(gesture);
             }
-        }
-        else {
+        } else {
             eprintln!("Remaining finger(s): {:?}", self.last_finger);
         }
 
@@ -414,29 +426,39 @@ impl TouchpadState {
         }
 
         // Determine most likely finger count
-        let finger = if self.one_finger_duration > self.two_finger_duration
-            && self.one_finger_duration > self.three_finger_duration
-            && self.one_finger_duration > self.four_finger_duration
-        {
-            Fingers::One
-        } else if self.two_finger_duration > self.one_finger_duration
-            && self.two_finger_duration > self.three_finger_duration
-            && self.two_finger_duration > self.four_finger_duration
-        {
-            Fingers::Two
-        } else if self.three_finger_duration > self.one_finger_duration
-            && self.three_finger_duration > self.two_finger_duration
-            && self.three_finger_duration > self.four_finger_duration
-        {
-            Fingers::Three
-        } else if self.four_finger_duration > self.one_finger_duration
-            && self.four_finger_duration > self.two_finger_duration
-            && self.four_finger_duration > self.three_finger_duration
-        {
-            Fingers::Four
-        } else {
-            eprintln!("Indeterminate action, all finger durations are equal!");
-            return None;
+        // let finger = if self.one_finger_duration > self.two_finger_duration
+        //     && self.one_finger_duration > self.three_finger_duration
+        //     && self.one_finger_duration > self.four_finger_duration
+        // {
+        //     Fingers::One
+        // } else if self.two_finger_duration > self.one_finger_duration
+        //     && self.two_finger_duration > self.three_finger_duration
+        //     && self.two_finger_duration > self.four_finger_duration
+        // {
+        //     Fingers::Two
+        // } else if self.three_finger_duration > self.one_finger_duration
+        //     && self.three_finger_duration > self.two_finger_duration
+        //     && self.three_finger_duration > self.four_finger_duration
+        // {
+        //     Fingers::Three
+        // } else if self.four_finger_duration > self.one_finger_duration
+        //     && self.four_finger_duration > self.two_finger_duration
+        //     && self.four_finger_duration > self.three_finger_duration
+        // {
+        //     Fingers::Four
+        // } else {
+        //     eprintln!("Indeterminate action, zero duration or all finger durations are equal!");
+        //     return None;
+        // };
+
+        // What if we always assume that the maximum number of fingers detected
+        // was the intended click?
+        let finger = match self.max_finger {
+            Some(finger) => finger,
+            None => {
+                eprintln!("Received report without any tools detected");
+                return None;
+            }
         };
 
         let distance = match &self.end_xy {
