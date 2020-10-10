@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use log::{debug, info, trace};
+
 /// The maximum travel before a tap is considered a swipe, in millimeters.
 const MAX_TAP_DISTANCE: f64 = 100f64;
 /// The maximum number of tools (fingers) that are tracked and reported on simultaneously.
@@ -220,7 +222,7 @@ impl SlotState {
 
 impl TouchpadState {
     pub fn reset(&mut self) {
-        eprintln!("***RESET***");
+        debug!("***RESET***");
         self.slot_states = Default::default();
         self.start_xy = None;
         self.end_xy = None;
@@ -294,22 +296,22 @@ impl TouchpadState {
 
                     // Finger state applied
                     (EventType::EV_KEY, EventCode::BTN_TOOL_FINGER) if event.value == 1 => {
-                        eprintln!("one finger press");
+                        debug!("one finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::One);
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_DOUBLETAP) if event.value == 1 => {
-                        eprintln!("two finger press");
+                        debug!("two finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Two);
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_TRIPLETAP) if event.value == 1 => {
-                        eprintln!("three finger press");
+                        debug!("three finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Three);
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_QUADTAP) if event.value == 1 => {
-                        eprintln!("four finger press");
+                        debug!("four finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Four);
                     }
@@ -318,7 +320,7 @@ impl TouchpadState {
                     // Assuming we never miss an event, the finger should always have started
                     (EventType::EV_KEY, EventCode::BTN_TOOL_FINGER) if event.value == 0 => {
                         if let Some(finger_start) = prev_finger_start {
-                            eprintln!(
+                            debug!(
                                 "one finger remove {}",
                                 event.time - prev_finger_start.unwrap()
                             );
@@ -328,7 +330,7 @@ impl TouchpadState {
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_DOUBLETAP) if event.value == 0 => {
                         if let Some(finger_start) = prev_finger_start {
-                            eprintln!(
+                            debug!(
                                 "two finger remove {}",
                                 event.time - prev_finger_start.unwrap()
                             );
@@ -338,7 +340,7 @@ impl TouchpadState {
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_TRIPLETAP) if event.value == 0 => {
                         if let Some(finger_start) = prev_finger_start {
-                            eprintln!(
+                            debug!(
                                 "three finger remove {}",
                                 event.time - prev_finger_start.unwrap()
                             );
@@ -348,7 +350,7 @@ impl TouchpadState {
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_QUADTAP) if event.value == 0 => {
                         if let Some(finger_start) = prev_finger_start {
-                            eprintln!(
+                            debug!(
                                 "four finger remove {}",
                                 event.time - prev_finger_start.unwrap()
                             );
@@ -385,7 +387,7 @@ impl TouchpadState {
             if self.max_finger == self.last_finger {
                 self.push_position(x, y);
             } else {
-                eprintln!("Position ignored");
+                debug!("Position ignored");
             }
         }
         // if prev_finger.is_none()
@@ -405,7 +407,7 @@ impl TouchpadState {
                 return Some(gesture);
             }
         } else {
-            eprintln!("Remaining finger(s): {:?}", self.last_finger);
+            debug!("Remaining finger(s): {:?}", self.last_finger);
         }
 
         return None;
@@ -421,7 +423,7 @@ impl TouchpadState {
 
     fn process(&mut self) -> Option<Gesture> {
         if self.start_xy.is_none() {
-            eprintln!("Received report but indeterminate start");
+            debug!("Received report but indeterminate start");
             return None;
         }
 
@@ -456,7 +458,7 @@ impl TouchpadState {
         let finger = match self.max_finger {
             Some(finger) => finger,
             None => {
-                eprintln!("Received report without any tools detected");
+                debug!("Received report without any tools detected");
                 return None;
             }
         };
@@ -466,17 +468,17 @@ impl TouchpadState {
             None => 0f64,
         };
 
-        eprintln!("Distance: {}", distance);
+        debug!("Distance: {}", distance);
 
-        dbg!(self.last_ts);
-        dbg!(self.last_gesture_time);
+        trace!("self.last_ts: {}", self.last_ts);
+        trace!("self.last_gesture_time: {}", self.last_gesture_time);
         if self.last_ts - self.last_gesture_time > DEBOUNCE_TIME {
             self.last_gesture_time = self.last_ts;
             if distance < MAX_TAP_DISTANCE {
-                eprintln!("tap detected");
+                debug!("tap detected");
                 Some(Gesture::Tap(finger))
             } else {
-                eprintln!("gesture detected");
+                debug!("gesture detected");
                 Some(Gesture::Swipe(
                     finger,
                     get_direction(
@@ -486,7 +488,7 @@ impl TouchpadState {
                 ))
             }
         } else {
-            eprintln!("Gesture ignored by debounce");
+            debug!("Gesture ignored by debounce");
             None
         }
     }

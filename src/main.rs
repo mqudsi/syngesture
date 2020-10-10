@@ -1,3 +1,5 @@
+use log::{info, trace};
+
 mod events;
 
 use events::{Direction, EventLoop, Fingers, Gesture};
@@ -40,14 +42,14 @@ fn main() {
             let code: u16 = captures[3].parse().unwrap();
             let value: i32 = captures[4].parse().unwrap();
 
-            eprintln!("{}", line);
+            trace!("{}", line);
             event_loop.add_event(time, event_type, code, value);
         }
     }
 }
 
 fn swipe_handler(gesture: Gesture) {
-    println!("{:?}", gesture);
+    info!("{:?}", gesture);
 
     match gesture {
         // Gesture::Tap(Fingers::Three) => {
