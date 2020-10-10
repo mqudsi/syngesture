@@ -1,6 +1,4 @@
-#![allow(unused)]
-
-use log::{debug, info, trace};
+use log::{debug, trace};
 
 /// The maximum travel before a tap is considered a swipe, in millimeters.
 const MAX_TAP_DISTANCE: f64 = 100f64;
@@ -44,7 +42,7 @@ impl EventLoop {
     }
 }
 
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, unused)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 enum EventType {
@@ -57,7 +55,7 @@ enum EventType {
 
 // Until it's proven that the different namespaces can collide (e.g. ABS_* and BTN_* sharing
 // values), just keep them in one enum for our own sanity.
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, unused)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 #[repr(u16)]
 enum EventCode {
@@ -91,7 +89,6 @@ enum EventCode {
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Direction {
-    None,
     Up,
     Down,
     Left,
@@ -203,6 +200,7 @@ impl SlotState {
         }
     }
 
+    #[allow(unused)]
     pub fn distance(&self) -> Option<f64> {
         if let (Some(start_xy), Some(end_xy)) = (&self.start_xy, &self.end_xy) {
             Some(get_distance(start_xy, end_xy))
@@ -211,6 +209,7 @@ impl SlotState {
         }
     }
 
+    #[allow(unused)]
     pub fn direction(&self) -> Option<Direction> {
         if let (Some(start_xy), Some(end_xy)) = (&self.start_xy, &self.end_xy) {
             Some(get_direction(start_xy, end_xy))
@@ -245,8 +244,9 @@ impl TouchpadState {
         // Loop over events and handle each slot separately
         {
             let prev_finger_start = self.finger_start;
-            let mut slot_id = 0usize;
             let mut slot = &mut self.slot_states[0];
+            #[allow(unused_assignments)]
+            let mut slot_id = 0usize;
             // A slot id is only specified if more than one tool is detected.
             if slot.is_none() {
                 *slot = Some(Default::default());
@@ -319,7 +319,7 @@ impl TouchpadState {
                     // Finger state removed
                     // Assuming we never miss an event, the finger should always have started
                     (EventType::EV_KEY, EventCode::BTN_TOOL_FINGER) if event.value == 0 => {
-                        if let Some(finger_start) = prev_finger_start {
+                        if prev_finger_start.is_some() {
                             debug!(
                                 "one finger remove {}",
                                 event.time - prev_finger_start.unwrap()
@@ -329,7 +329,7 @@ impl TouchpadState {
                         self.last_finger = None;
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_DOUBLETAP) if event.value == 0 => {
-                        if let Some(finger_start) = prev_finger_start {
+                        if prev_finger_start.is_some() {
                             debug!(
                                 "two finger remove {}",
                                 event.time - prev_finger_start.unwrap()
@@ -339,7 +339,7 @@ impl TouchpadState {
                         self.last_finger = None;
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_TRIPLETAP) if event.value == 0 => {
-                        if let Some(finger_start) = prev_finger_start {
+                        if prev_finger_start.is_some() {
                             debug!(
                                 "three finger remove {}",
                                 event.time - prev_finger_start.unwrap()
@@ -349,7 +349,7 @@ impl TouchpadState {
                         self.last_finger = None;
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_QUADTAP) if event.value == 0 => {
-                        if let Some(finger_start) = prev_finger_start {
+                        if prev_finger_start.is_some() {
                             debug!(
                                 "four finger remove {}",
                                 event.time - prev_finger_start.unwrap()
@@ -390,18 +390,8 @@ impl TouchpadState {
                 debug!("Position ignored");
             }
         }
-        // if prev_finger.is_none()
-        //     || prev_finger.as_ref().unwrap() > self.last_finger.as_ref().unwrap())
-        // {
-        //     if let (Some(x), Some(y)) = (overall_x.take(), overall_y.take()) {
-        //         self.push_position(x, y);
-        //     }
-        // } else {
-        //     eprintln!("position ignore")
-        // }
 
         if self.last_finger.is_none() {
-            // if self.slot_states.iter().all(|slot| slot.is_none() || slot.as_ref().unwrap().complete) {
             if let Some(gesture) = self.process() {
                 self.reset();
                 return Some(gesture);
@@ -426,32 +416,6 @@ impl TouchpadState {
             debug!("Received report but indeterminate start");
             return None;
         }
-
-        // Determine most likely finger count
-        // let finger = if self.one_finger_duration > self.two_finger_duration
-        //     && self.one_finger_duration > self.three_finger_duration
-        //     && self.one_finger_duration > self.four_finger_duration
-        // {
-        //     Fingers::One
-        // } else if self.two_finger_duration > self.one_finger_duration
-        //     && self.two_finger_duration > self.three_finger_duration
-        //     && self.two_finger_duration > self.four_finger_duration
-        // {
-        //     Fingers::Two
-        // } else if self.three_finger_duration > self.one_finger_duration
-        //     && self.three_finger_duration > self.two_finger_duration
-        //     && self.three_finger_duration > self.four_finger_duration
-        // {
-        //     Fingers::Three
-        // } else if self.four_finger_duration > self.one_finger_duration
-        //     && self.four_finger_duration > self.two_finger_duration
-        //     && self.four_finger_duration > self.three_finger_duration
-        // {
-        //     Fingers::Four
-        // } else {
-        //     eprintln!("Indeterminate action, zero duration or all finger durations are equal!");
-        //     return None;
-        // };
 
         // What if we always assume that the maximum number of fingers detected
         // was the intended click?

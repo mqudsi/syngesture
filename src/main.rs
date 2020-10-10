@@ -1,8 +1,7 @@
-use log::{info, trace};
-
 mod events;
 
 use events::{Direction, EventLoop, Fingers, Gesture};
+use log::{info, trace};
 use regex::Regex;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
@@ -83,11 +82,9 @@ fn swipe_handler(gesture: Gesture) {
     }
 }
 
-fn xdotool(command: &str, actions: &str) {
+fn xdotool(command: &'static str, actions: &'static str) {
     use std::thread;
 
-    let command = String::from(command);
-    let actions = String::from(actions);
     thread::spawn(move || {
         Command::new("xdotool")
             .args(&[command, actions])
