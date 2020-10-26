@@ -10,7 +10,7 @@ fn main() {
     let mut event_loop = EventLoop::new();
 
     let evtest = Command::new("sudo")
-        .args(&["evtest", "/dev/input/event11"])
+        .args(&["evtest", "/dev/input/by-path/pci-0000:00:15.0-platform-i2c_designware.0-event-mouse"])
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()
