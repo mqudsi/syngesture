@@ -76,16 +76,29 @@ fn main() {
 fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
     info!("{:?}", gesture);
 
-    if let Some(action) = gestures.get(&gesture) {
-        match action {
-            &Action::None => {},
-            &Action::Execute(ref cmd) => {
-                let mut shell = Command::new("sh");
-                shell.args(&["-c", cmd]);
-                if let Err(e) = shell.spawn() {
+    let action = match gestures.get(&gesture) {
+        Some(action) => action,
+        None => return,
+    };
+
+    match action {
+        &Action::None => {}
+        &Action::Execute(ref cmd) => {
+            let mut shell = Command::new("sh");
+            shell.args(&["-c", cmd]);
+            let mut child = match shell.spawn() {
+                Ok(child) => child,
+                Err(e) => {
                     eprintln!("{}", e);
+                    return;
                 }
-            }
+            };
+
+            // Spawn a thread to wait on the process to finish executing.
+            // TODO: Just have one thread wait on all launched processes.
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
         }
     }
 }
