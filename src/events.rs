@@ -1,4 +1,6 @@
 use log::{debug, trace};
+use serde::Deserialize;
+use serde_repr::*;
 
 /// The maximum travel before a tap is considered a swipe, in millimeters.
 const MAX_TAP_DISTANCE: f64 = 100f64;
@@ -87,15 +89,22 @@ enum EventCode {
     BTN_TOOL_QUINTTAP = 328,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Deserialize)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub(crate) enum Direction {
+    #[serde(alias = "up")]
     Up,
+    #[serde(alias = "down")]
     Down,
+    #[serde(alias = "left")]
     Left,
+    #[serde(alias = "right")]
     Right,
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Copy)]
+#[repr(u8)]
+#[derive(Deserialize_repr)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Copy, Eq, Ord)]
 pub(crate) enum Fingers {
     One = 1,
     Two = 2,
@@ -121,10 +130,13 @@ struct SynReport {
 }
 
 /// A result derived from one or more [`SynReport`] instances in a stream.
-#[derive(Debug)]
+#[derive(Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "lowercase")]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub(crate) enum Gesture {
-    Tap(Fingers),
-    Swipe(Fingers, Direction),
+    Tap { fingers: Fingers },
+    Swipe { fingers: Fingers, direction: Direction }
 }
 
 #[derive(Debug, Default)]
@@ -173,7 +185,7 @@ struct TouchpadState {
     pub end_xy: Option<Position>,
     pub last_ts: f64,
     pub last_gesture_time: f64,
-    pub max_finger: Option<Fingers>,
+    pub max_fingers: Option<Fingers>,
     pub last_finger: Option<Fingers>,
     pub finger_start: Option<f64>,
     pub one_finger_duration: f64,
@@ -227,7 +239,7 @@ impl TouchpadState {
         self.end_xy = None;
         // self.last_gesture_time should not be reset!
         // self.last_gesture_time = 0f64;
-        self.max_finger = None;
+        self.max_fingers = None;
         self.last_finger = None;
         self.finger_start = None;
         self.one_finger_duration = 0f64;
@@ -375,16 +387,16 @@ impl TouchpadState {
             return None;
         }
 
-        if self.max_finger.is_none() || self.last_finger > self.max_finger {
+        if self.max_fingers.is_none() || self.last_finger > self.max_fingers {
             // Reset start position because everything until now was presumably building to this
             self.start_xy = None;
-            self.max_finger = self.last_finger;
+            self.max_fingers = self.last_finger;
         }
 
         if let (Some(x), Some(y)) = (overall_x.take(), overall_y.take()) {
             // We always consider a decrease in tool count to be a tear-down and ignore the change
             // in position.
-            if self.max_finger == self.last_finger {
+            if self.max_fingers == self.last_finger {
                 self.push_position(x, y);
             } else {
                 debug!("Position ignored");
@@ -419,7 +431,7 @@ impl TouchpadState {
 
         // What if we always assume that the maximum number of fingers detected
         // was the intended click?
-        let finger = match self.max_finger {
+        let fingers = match self.max_fingers {
             Some(finger) => finger,
             None => {
                 debug!("Received report without any tools detected");
@@ -440,16 +452,16 @@ impl TouchpadState {
             self.last_gesture_time = self.last_ts;
             if distance < MAX_TAP_DISTANCE {
                 debug!("tap detected");
-                Some(Gesture::Tap(finger))
+                Some(Gesture::Tap { fingers })
             } else {
                 debug!("gesture detected");
-                Some(Gesture::Swipe(
-                    finger,
-                    get_direction(
+                Some(Gesture::Swipe {
+                    fingers,
+                    direction: get_direction(
                         self.start_xy.as_ref().unwrap(),
                         self.end_xy.as_ref().unwrap(),
                     ),
-                ))
+                })
             }
         } else {
             debug!("Gesture ignored by debounce");
