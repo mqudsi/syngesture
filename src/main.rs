@@ -21,8 +21,14 @@ fn main() {
         std::process::exit(-1);
     }
 
+    // Event: time 1593656931.323635, type 3 (EV_ABS), code 47 (ABS_MT_SLOT), value 0
+    let event_regex = std::sync::Arc::new(
+        Regex::new(r#"time (\d+\.\d+), type (\d+) .* code (\d+) .* value (\d+)"#).unwrap()
+    );
+
     let mut threads = Vec::new();
     for (device, gestures) in config.devices {
+        let event_regex = event_regex.clone();
         let handle = std::thread::spawn(move || {
             let mut event_loop = EventLoop::new();
 
@@ -32,10 +38,6 @@ fn main() {
                 .stderr(Stdio::inherit())
                 .spawn()
                 .unwrap();
-
-            // Event: time 1593656931.323635, type 3 (EV_ABS), code 47 (ABS_MT_SLOT), value 0
-            let event_regex =
-                Regex::new(r#"time (\d+\.\d+), type (\d+) .* code (\d+) .* value (\d+)"#).unwrap();
 
             let reader = BufReader::new(evtest.stdout.unwrap());
             for line in reader.lines() {
