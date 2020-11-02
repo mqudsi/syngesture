@@ -102,7 +102,10 @@ fn which(target: &str) -> Option<String> {
     if output.status.success() {
         let result = match String::from_utf8(output.stdout) {
             Ok(result) => result,
-            Err(_) => return None,
+            Err(_) => {
+                warn!("Path to {} cannot be converted to a UTF-8 string!", target);
+                return None;
+            }
         };
         return Some(result);
     }
