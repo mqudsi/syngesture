@@ -3,13 +3,18 @@ mod events;
 
 use config::Action;
 use events::{EventLoop, Gesture};
-use log::{info, trace};
+use log::{info, trace, warn};
 use regex::Regex;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 
 fn main() {
     let config = config::load();
+
+    if which("evtest").is_none() {
+        eprintln!("Cannot find `evtest` - make sure it is installed and try again!");
+        std::process::exit(-1);
+    }
 
     if config.devices.is_empty() {
         eprintln!("No configured devices");
@@ -73,7 +78,7 @@ fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
         match action {
             &Action::None => {},
             &Action::Execute(ref cmd) => {
-                let mut shell = std::process::Command::new("sh");
+                let mut shell = Command::new("sh");
                 shell.args(&["-c", cmd]);
                 if let Err(e) = shell.spawn() {
                     eprintln!("{}", e);
@@ -81,6 +86,28 @@ fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
             }
         }
     }
+}
+
+fn which(target: &str) -> Option<String> {
+    let mut cmd = Command::new("which");
+    cmd.args(&[target]);
+    let output = match cmd.output() {
+        Err(_) => {
+            warn!("Failed to find/execute `which`");
+            return None;
+        },
+        Ok(output) => output,
+    };
+
+    if output.status.success() {
+        let result = match String::from_utf8(output.stdout) {
+            Ok(result) => result,
+            Err(_) => return None,
+        };
+        return Some(result);
+    }
+
+    return None;
 }
 
 // fn xdotool(command: &'static str, actions: &'static str) {
