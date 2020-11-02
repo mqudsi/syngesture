@@ -57,8 +57,7 @@ impl EventLoop {
 }
 
 #[allow(non_camel_case_types, unused)]
-#[derive(Deserialize_repr)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Deserialize_repr, Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 enum EventType {
     /// Unknown
@@ -71,8 +70,7 @@ enum EventType {
 // Until it's proven that the different namespaces can collide (e.g. ABS_* and BTN_* sharing
 // values), just keep them in one enum for our own sanity.
 #[allow(non_camel_case_types, unused)]
-#[derive(Deserialize_repr)]
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Deserialize_repr, Clone, Copy, Debug, PartialEq, PartialOrd)]
 #[repr(u16)]
 enum EventCode {
     // Absolute Events (reported per-tool)
@@ -103,8 +101,7 @@ enum EventCode {
     BTN_TOOL_QUINTTAP = 328,
 }
 
-#[derive(Deserialize)]
-#[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub(crate) enum Direction {
     #[serde(alias = "up")]
     Up,
@@ -117,8 +114,7 @@ pub(crate) enum Direction {
 }
 
 #[repr(u8)]
-#[derive(Deserialize_repr)]
-#[derive(Clone, Debug, PartialEq, PartialOrd, Copy, Eq, Ord)]
+#[derive(Deserialize_repr, Clone, Debug, PartialEq, PartialOrd, Copy, Eq, Ord)]
 pub(crate) enum Fingers {
     One = 1,
     Two = 2,
@@ -149,8 +145,13 @@ struct SynReport {
 #[serde(rename_all = "lowercase")]
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
 pub(crate) enum Gesture {
-    Tap { fingers: Fingers },
-    Swipe { fingers: Fingers, direction: Direction }
+    Tap {
+        fingers: Fingers,
+    },
+    Swipe {
+        fingers: Fingers,
+        direction: Direction,
+    },
 }
 
 #[derive(Debug, Default)]

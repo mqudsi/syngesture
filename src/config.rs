@@ -1,15 +1,15 @@
 use crate::events::*;
-use std::ffi::OsStr;
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
 use serde::Deserialize;
+use std::collections::BTreeMap;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 
 const PREFIX: Option<&'static str> = option_env!("PREFIX");
 
 pub(crate) type Device = String;
 pub(crate) type GestureMap = BTreeMap<Gesture, Action>;
 
-type BoxedError = Box::<dyn std::error::Error + Send + Sync>;
+type BoxedError = Box<dyn std::error::Error + Send + Sync>;
 type Result<T> = std::result::Result<T, BoxedError>;
 
 pub(crate) struct Configuration {
@@ -69,14 +69,21 @@ pub(crate) fn load() -> Configuration {
 
 fn try_load_config_file(config: &mut Configuration, path: &Path) {
     if let Err(e) = load_config_file(config, &path) {
-        eprintln!("Error loading configuration file at {}: {}", path.display(), e);
+        eprintln!(
+            "Error loading configuration file at {}: {}",
+            path.display(),
+            e
+        );
     }
 }
 
 fn try_load_config_dir(config: &mut Configuration, dir: &Path) {
     if let Err(e) = load_config_dir(config, &dir) {
-        eprintln!("Error reading from configuration directory {}: {}",
-            dir.display(), e);
+        eprintln!(
+            "Error reading from configuration directory {}: {}",
+            dir.display(),
+            e
+        );
     }
 }
 
@@ -85,13 +92,11 @@ fn load_user_config(mut config: &mut Configuration) {
 
     let config_home = match std::env::var("XDG_CONFIG_HOME") {
         Ok(xdg_config_home) => PathBuf::from(xdg_config_home),
-        Err(VarError::NotPresent) => {
-            match get_user_config_dir() {
-                Ok(dir) => PathBuf::from(dir),
-                Err(e) => {
-                    eprintln!("{}", e);
-                    return;
-                }
+        Err(VarError::NotPresent) => match get_user_config_dir() {
+            Ok(dir) => PathBuf::from(dir),
+            Err(e) => {
+                eprintln!("{}", e);
+                return;
             }
         },
         Err(VarError::NotUnicode(_)) => {
@@ -133,8 +138,11 @@ fn load_config_dir(mut config: &mut Configuration, dir: &Path) -> Result<()> {
         let item = match item {
             Ok(item) => item,
             Err(e) => {
-                eprintln!("Error reading file from configuration directory {}: {}",
-                    dir.display(), e);
+                eprintln!(
+                    "Error reading file from configuration directory {}: {}",
+                    dir.display(),
+                    e
+                );
                 continue;
             }
         };
@@ -163,7 +171,6 @@ fn load_config_dir(mut config: &mut Configuration, dir: &Path) -> Result<()> {
 }
 
 fn load_config_file(config: &mut Configuration, path: &Path) -> Result<()> {
-
     #[derive(Deserialize)]
     struct ConfigGestureAndAction {
         #[serde(flatten)]
