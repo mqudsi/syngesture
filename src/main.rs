@@ -92,6 +92,8 @@ fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
 
 fn which(target: &str) -> Option<String> {
     let mut cmd = Command::new("which");
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::null());
     cmd.args(&[target]);
     let output = match cmd.output() {
         Err(_) => {
