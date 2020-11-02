@@ -25,8 +25,20 @@ impl EventLoop {
     }
 
     pub fn add_event(&mut self, time: f64, event_type: u8, event_code: u16, event_value: i32) {
-        let event_type: EventType = unsafe { std::mem::transmute(event_type) };
-        let event_code: EventCode = unsafe { std::mem::transmute(event_code) };
+        let event_type: EventType = match toml::Value::Integer(event_type as i64).try_into() {
+            Ok(value) => value,
+            Err(_) => {
+                trace!("Unsupported event_type {}", event_type);
+                return;
+            }
+        };
+        let event_code: EventCode = match toml::Value::Integer(event_code as i64).try_into() {
+            Ok(value) => value,
+            Err(_) => {
+                trace!("Unsupported event_code {}", event_code);
+                return;
+            }
+        };
 
         self.report.events.push(SynEvent {
             time,
@@ -45,6 +57,7 @@ impl EventLoop {
 }
 
 #[allow(non_camel_case_types, unused)]
+#[derive(Deserialize_repr)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 enum EventType {
@@ -58,6 +71,7 @@ enum EventType {
 // Until it's proven that the different namespaces can collide (e.g. ABS_* and BTN_* sharing
 // values), just keep them in one enum for our own sanity.
 #[allow(non_camel_case_types, unused)]
+#[derive(Deserialize_repr)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 #[repr(u16)]
 enum EventCode {
