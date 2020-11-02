@@ -26,8 +26,8 @@ fn main() {
         let handle = std::thread::spawn(move || {
             let mut event_loop = EventLoop::new();
 
-            let evtest = Command::new("sudo")
-                .args(&["evtest", &device])
+            let evtest = Command::new("evtest")
+                .args(&[&device])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::inherit())
                 .spawn()
