@@ -76,17 +76,16 @@ gestures = [
 	{ type = "swipe", direction = "right", fingers = 4, execute = "xdotool key Super_L+Right" },
 	# Previous desktop/workspace
 	{ type = "swipe", direction = "left", fingers = 4, execute = "xdotool key Super_L+Left" },
-
-	# Enter multi-tasking view
-	{ type = "swipe", direction = "up", fingers = 4, execute = "xdotool key Super_L+Down" },
-	# Leave multi-tasking view
-	{ type = "swipe", direction = "down", fingers = 4, execute = "xdotool key Super_L+Down" },
 ]
 ```
 
 The value of `device` should be a stable path to your touchpad, it can often be found by looking at
 the output of `dmesg`. Wayland users may substitute the usage of `xdotool` for whatever alternative
 supports their display server/compositor/window manager.
+
+The value of each gesture's `type` may be either `swipe` or `tap`; a numeric `fingers` parameter
+from `1` to `5` is required in both cases, but an additional `direction` (being one of `right`,
+`left`, `up`, or `down`) is required in case of `swipe`.
 
 ## License
 
