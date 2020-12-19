@@ -49,7 +49,7 @@ cargo install --path .
 alternatively, it may be installed directly via cargo:
 
 ```
-cargo install syngesture
+cargo install syngestures
 ```
 
 ## Configuration
