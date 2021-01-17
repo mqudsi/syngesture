@@ -28,7 +28,7 @@ package manager, e.g. `sudo apt install evtest`.
 ### Security Considerations
 
 Depending on your system configuration and [at least until the `evtest` dependency is
-dropped](https://github.com/mqudsi/syngesture/issues/1), you may need to set the sticky bit on
+dropped](https://github.com/mqudsi/syngesture/issues/1), you may need to set the SUID bit on
 `evtest` to allow non-root users to invoke `evtest` without requiring the calling process to also be
 elevated. Since `syngestures` currently allows running arbitrary commands in response to multi-touch
 gestures via its configuration files, it is not recommended to work around permission errors by
