@@ -56,8 +56,8 @@ pub(crate) fn load() -> Configuration {
     if config.devices.is_empty() {
         eprintln!("No configuration found!");
         eprintln!("Searched for configuration files in the following locations:");
-        eprintln!("* {}/etc/syngestures.toml", global_config_dir.display());
-        eprintln!("* {}/etc/syngestures.d/*.toml", global_config_dir.display());
+        eprintln!("* {}/etc/syngestures.toml", prefix.display());
+        eprintln!("* {}/etc/syngestures.d/*.toml", prefix.display());
         eprintln!("* $XDG_HOME/syngestures.toml");
         eprintln!("* $XDG_HOME/syngestures.d/*.toml");
         eprintln!("* $HOME/.config/syngestures.toml");
