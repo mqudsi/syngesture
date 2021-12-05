@@ -12,8 +12,8 @@ keywords = [ "multi-touch", "gestures", "synaptics", "syngesture" ]
 categories = [ "command-line-utilities", "os" ]
 
 [dependencies]
-log = "0.4"
-regex = { version = "1.3.9" }
-serde = { version = "1.0", features = [ "derive" ] }
-serde_repr = "0.1"
-toml = "0.5.7"
+log = "0.4.14"
+regex = "1.5.4"
+serde = { version = "1.0.126", features = [ "derive" ] }
+serde_repr = "0.1.7"
+toml = "0.5.8"
