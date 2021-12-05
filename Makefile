@@ -6,7 +6,7 @@
 COLOR ?= auto # Valid COLOR options: {always, auto, never}
 CARGO = cargo --color $(COLOR)
 
-.PHONY: all bench build check clean doc install publish run test update
+.PHONY: all bench build check clean doc install publish run test update package
 
 all: build
 
@@ -40,3 +40,9 @@ test: build
 update:
 	@$(CARGO) update
 
+target/x86_64-unknown-linux-musl/release/syngestures: src/*.rs Cargo.toml Cargo.lock
+	env RUSTFLAGS= $(CARGO) build --release --target x86_64-unknown-linux-musl
+	strip $@
+
+package: syngestures.toml target/release/syngestures README.md LICENSE target/x86_64-unknown-linux-musl/release/syngestures
+	tar czf syngestures.tar.gz README.md LICENSE syngestures.toml -C target/x86_64-unknown-linux-musl/release/ syngestures
