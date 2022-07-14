@@ -13,7 +13,7 @@ categories = [ "command-line-utilities", "os" ]
 
 [dependencies]
 log = "0.4.17"
-regex = "1.5.6"
-serde = { version = "1.0.137", features = [ "derive" ] }
+regex = "1.6.0"
+serde = { version = "1.0.139", features = [ "derive" ] }
 serde_repr = "0.1.8"
 toml = "0.5.9"
