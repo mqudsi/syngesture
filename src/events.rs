@@ -212,7 +212,9 @@ struct TouchpadState {
 #[derive(Debug, Default)]
 struct SlotState {
     pub complete: bool,
-    pub tool_id: Option<i32>,
+    // pub tool_id: Option<i32>,
+    #[allow(unused)]
+    #[cfg(debug_assertions)]
     pub last_ts: f64,
     pub start_xy: Option<Position>,
     pub end_xy: Option<Position>,
