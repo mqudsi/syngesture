@@ -38,10 +38,27 @@ impl Default for Action {
     }
 }
 
+fn get_prefix() -> PathBuf {
+    PathBuf::from(PREFIX.unwrap_or("/usr/local"))
+}
+
+pub(crate) fn config_dirs() -> Vec<String> {
+    let prefix = get_prefix();
+
+    vec![
+        format!("{}/etc/syngestures.toml", prefix.display()),
+        format!("{}/etc/syngestures.d/*.toml", prefix.display()),
+        "$XDG_HOME/syngestures.toml".to_owned(),
+        "$XDG_HOME/syngestures.d/*.toml".to_owned(),
+        "$HOME/.config/syngestures.toml".to_owned(),
+        "$HOME/.config/syngestures.d/*.toml".to_owned(),
+    ]
+}
+
 pub(crate) fn load() -> Configuration {
     let mut config = Configuration::new();
 
-    let prefix = PathBuf::from(PREFIX.unwrap_or("/usr/local"));
+    let prefix = get_prefix();
     let global_config = prefix.join("etc/syngestures.toml");
 
     if global_config.exists() {
@@ -56,12 +73,9 @@ pub(crate) fn load() -> Configuration {
     if config.devices.is_empty() {
         eprintln!("No configuration found!");
         eprintln!("Searched for configuration files in the following locations:");
-        eprintln!("* {}/etc/syngestures.toml", prefix.display());
-        eprintln!("* {}/etc/syngestures.d/*.toml", prefix.display());
-        eprintln!("* $XDG_HOME/syngestures.toml");
-        eprintln!("* $XDG_HOME/syngestures.d/*.toml");
-        eprintln!("* $HOME/.config/syngestures.toml");
-        eprintln!("* $HOME/.config/syngestures.d/*.toml");
+        for dir in config_dirs() {
+            eprintln!("* {}", dir);
+        }
     }
 
     config

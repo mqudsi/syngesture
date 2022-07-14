@@ -29,12 +29,36 @@ fn print_version<W: std::io::Write>(target: &mut W) {
 
 fn print_help<W: std::io::Write>(target: &mut W) {
     print_version(&mut *target);
-    writeln!(target, "").ok();
-    writeln!(target, "Usage: syngestures [OPTIONS]").ok();
-    writeln!(target, "").ok();
-    writeln!(target, "Options:").ok();
-    writeln!(target, "  -h --help     Print this help message").ok();
-    writeln!(target, "  -V --version  Print version info").ok();
+    for line in [
+        "",
+        "Usage: syngestures [OPTIONS]",
+        "",
+        "Options:",
+        "  -h --help     Print this help message",
+        "  -V --version  Print version info",
+        "",
+        "A valid syngestures config file must be installed to one of the",
+        "following locations before executing syngestures:",
+    ] {
+        writeln!(target, "{}", line).ok();
+    }
+
+    for dir in config::config_dirs() {
+        writeln!(target, "  * {}", dir).ok();
+    }
+
+    for line in [
+        "",
+        "A sample configuration file can be found in the package tarball or online at",
+    ] {
+        writeln!(target, "{}", line).ok();
+    }
+
+    let _ = writeln!(
+        target,
+        "<https://raw.githubusercontent.com/mqudsi/syngesture/{}/syngestures.toml>",
+        env!("CARGO_PKG_VERSION")
+    );
 }
 
 fn main() {
