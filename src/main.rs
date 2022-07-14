@@ -8,7 +8,55 @@ use regex::Regex;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 
+fn print_version<W: std::io::Write>(target: &mut W) {
+    writeln!(
+        target,
+        "syngestures {} - Copyright NeoSmart Technologies 2020-2022",
+        env!("CARGO_PKG_VERSION")
+    )
+    .ok();
+    writeln!(
+        target,
+        "Developed by Mahmoud Al-Qudsi and other syngestures contributors"
+    )
+    .ok();
+    writeln!(
+        target,
+        "Report bugs at <https://github.com/mqudsi/syngesture>"
+    )
+    .ok();
+}
+
+fn print_help<W: std::io::Write>(target: &mut W) {
+    print_version(&mut *target);
+    writeln!(target, "").ok();
+    writeln!(target, "Usage: syngestures [OPTIONS]").ok();
+    writeln!(target, "").ok();
+    writeln!(target, "Options:").ok();
+    writeln!(target, "  -h --help     Print this help message").ok();
+    writeln!(target, "  -V --version  Print version info").ok();
+}
+
 fn main() {
+    let args = std::env::args();
+    for arg in args.skip(1) {
+        match arg.as_str() {
+            "-h" | "--help" => {
+                print_help(&mut std::io::stdout());
+                std::process::exit(0);
+            }
+            "-V" | "--version" => {
+                print_version(&mut std::io::stdout());
+                std::process::exit(0);
+            }
+            _ => {
+                eprintln!("{}: Invalid option!", arg);
+                eprintln!("Try 'syngestures --help' for more info");
+                std::process::exit(-1);
+            }
+        }
+    }
+
     let config = config::load();
 
     if which("evtest").is_none() {
