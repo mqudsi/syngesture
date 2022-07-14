@@ -113,6 +113,7 @@ dependencies = [
 name = "syngestures"
 version = "1.0.0"
 dependencies = [
+ "aho-corasick",
  "log",
  "regex",
  "serde",

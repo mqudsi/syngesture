@@ -12,6 +12,7 @@ keywords = [ "multi-touch", "gestures", "synaptics", "syngesture" ]
 categories = [ "command-line-utilities", "os" ]
 
 [dependencies]
+aho-corasick = "0.7.18"
 log = "0.4.17"
 regex = "1.6.0"
 serde = { version = "1.0.139", features = [ "derive" ] }

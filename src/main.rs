@@ -4,9 +4,9 @@ mod events;
 use config::Action;
 use events::{EventLoop, Gesture};
 use log::{info, trace, warn};
-use regex::Regex;
-use std::path::PathBuf;
+use regex::bytes::Regex;
 use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 fn print_version<W: std::io::Write>(target: &mut W) {
@@ -99,28 +99,37 @@ fn main() {
         Regex::new(r#"time (\d+\.\d+), type (\d+) .* code (\d+) .* value (\d+)"#).unwrap(),
     );
 
+    let searcher = std::sync::Arc::new(
+        aho_corasick::packed::Searcher::new([b"SYN_REPORT"])
+            .expect("Failed to build aho-corasick searcher!"),
+    );
+
     let mut threads = Vec::new();
     for (device, gestures) in config.devices {
         let event_regex = event_regex.clone();
+        let searcher = searcher.clone();
         let handle = std::thread::spawn(move || {
             let mut event_loop = EventLoop::new();
 
-            let evtest = Command::new("evtest")
+            let mut evtest = Command::new("evtest")
                 .args(&[&device])
                 .stdout(Stdio::piped())
                 .stderr(Stdio::inherit())
                 .spawn()
                 .unwrap();
 
-            let reader = BufReader::new(evtest.stdout.unwrap());
-            for line in reader.lines() {
-                let line = match line {
-                    Ok(line) => line,
+            let mut reader = BufReader::new(evtest.stdout.take().unwrap());
+            let mut line = Vec::new();
+
+            loop {
+                line.clear();
+                let line = match reader.read_until(b'\n', &mut line) {
+                    Ok(bytes_read) => &line[..bytes_read - 1],
                     Err(_) => break,
                 };
 
                 // Event: time 1593656931.306879, -------------- SYN_REPORT ------------
-                if line.contains("SYN_REPORT") {
+                if searcher.find(b"SYN_REPORT").is_some() {
                     if let Some(gesture) = event_loop.update() {
                         swipe_handler(&gestures, gesture);
                     }
@@ -128,15 +137,20 @@ fn main() {
                 }
 
                 if let Some(captures) = event_regex.captures(&line) {
-                    let time: f64 = captures[1].parse().unwrap();
-                    let event_type: u8 = captures[2].parse().unwrap();
-                    let code: u16 = captures[3].parse().unwrap();
-                    let value: i32 = captures[4].parse().unwrap();
+                    let time: f64 = std::str::from_utf8(&captures[1]).unwrap().parse().unwrap();
+                    let event_type: u8 =
+                        std::str::from_utf8(&captures[2]).unwrap().parse().unwrap();
+                    let code: u16 = std::str::from_utf8(&captures[3]).unwrap().parse().unwrap();
+                    let value: i32 = std::str::from_utf8(&captures[4]).unwrap().parse().unwrap();
 
-                    trace!("{}", line);
+                    trace!("{}", String::from_utf8_lossy(line));
                     event_loop.add_event(time, event_type, code, value);
                 }
             }
+
+            // Reap the evtest child process to prevent a zombie apocalypse
+            let _ = evtest.kill();
+            let _ = evtest.wait();
         });
         threads.push(handle);
     }
@@ -168,6 +182,7 @@ fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
             };
 
             // Spawn a thread to wait on the process to finish executing.
+            // This is only here to avoid zombie processes from piling up.
             // TODO: Just have one thread wait on all launched processes.
             std::thread::spawn(move || {
                 let _ = child.wait();
