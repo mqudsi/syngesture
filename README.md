@@ -91,4 +91,4 @@ from `1` to `5` is required in both cases, but an additional `direction` (being 
 ## License
 
 syngestures is developed and maintained by Mahmoud Al-Qudsi and released as open source under the
-MIT license, copyright NeoSmart Technologies 2020.
+MIT license, copyright NeoSmart Technologies 2020-2022.
