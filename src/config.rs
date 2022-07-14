@@ -102,21 +102,15 @@ fn try_load_config_dir(config: &mut Configuration, dir: &Path) {
 }
 
 fn load_user_config(mut config: &mut Configuration) {
-    use std::env::VarError;
-
-    let config_home = match std::env::var("XDG_CONFIG_HOME") {
-        Ok(xdg_config_home) => PathBuf::from(xdg_config_home),
-        Err(VarError::NotPresent) => match get_user_config_dir() {
+    let config_home = match std::env::var_os("XDG_CONFIG_HOME") {
+        Some(xdg_config_home) => PathBuf::from(xdg_config_home),
+        None => match get_user_config_dir() {
             Ok(dir) => PathBuf::from(dir),
             Err(e) => {
                 eprintln!("{}", e);
                 return;
             }
         },
-        Err(VarError::NotUnicode(_)) => {
-            eprintln!("Invalid XDG_CONFIG_HOME");
-            return;
-        }
     };
 
     let user_config_file = config_home.join("syngestures.toml");
