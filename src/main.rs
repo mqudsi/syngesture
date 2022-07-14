@@ -5,6 +5,7 @@ use config::Action;
 use events::{EventLoop, Gesture};
 use log::{info, trace, warn};
 use regex::Regex;
+use std::path::PathBuf;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 
@@ -175,7 +176,10 @@ fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
     }
 }
 
-fn which(target: &str) -> Option<String> {
+fn which(target: &str) -> Option<PathBuf> {
+    use std::ffi::OsString;
+    use std::os::unix::prelude::OsStringExt;
+
     let mut cmd = Command::new("which");
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::null());
@@ -189,14 +193,8 @@ fn which(target: &str) -> Option<String> {
     };
 
     if output.status.success() {
-        let result = match String::from_utf8(output.stdout) {
-            Ok(result) => result,
-            Err(_) => {
-                warn!("Path to {} cannot be converted to a UTF-8 string!", target);
-                return None;
-            }
-        };
-        return Some(result);
+        let path = OsString::from_vec(output.stdout);
+        return Some(PathBuf::from(path));
     }
 
     return None;
