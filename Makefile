@@ -44,5 +44,7 @@ target/x86_64-unknown-linux-musl/release/syngestures: src/*.rs Cargo.toml Cargo.
 	env RUSTFLAGS= $(CARGO) build --release --target x86_64-unknown-linux-musl
 	strip $@
 
-package: syngestures.toml target/release/syngestures README.md LICENSE target/x86_64-unknown-linux-musl/release/syngestures
+syngestures.tar.gz: syngestures.toml target/release/syngestures README.md LICENSE target/x86_64-unknown-linux-musl/release/syngestures
 	tar czf syngestures.tar.gz README.md LICENSE syngestures.toml -C target/x86_64-unknown-linux-musl/release/ syngestures
+
+package: syngestures.tar.gz
