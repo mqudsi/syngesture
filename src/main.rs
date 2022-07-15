@@ -124,6 +124,7 @@ fn main() {
             loop {
                 line.clear();
                 let line = match reader.read_until(b'\n', &mut line) {
+                    Ok(0) => break,
                     Ok(bytes_read) => &line[..bytes_read - 1],
                     Err(_) => break,
                 };
