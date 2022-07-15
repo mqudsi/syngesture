@@ -96,7 +96,7 @@ fn main() {
 
     // Event: time 1593656931.323635, type 3 (EV_ABS), code 47 (ABS_MT_SLOT), value 0
     let event_regex = std::sync::Arc::new(
-        Regex::new(r#"time (\d+\.\d+), type (\d+) .* code (\d+) .* value (\d+)"#).unwrap(),
+        Regex::new(r#"^Event: time (\d+\.\d+), type (\d+) .* code (\d+) .* value (\d+)"#).unwrap(),
     );
 
     let searcher = std::sync::Arc::new(
