@@ -8,24 +8,21 @@ use regex::bytes::Regex;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::str;
 
 fn print_version<W: std::io::Write>(target: &mut W) {
-    writeln!(
+    let _ = writeln!(
         target,
         "syngestures {} - Copyright NeoSmart Technologies 2020-2022",
         env!("CARGO_PKG_VERSION")
-    )
-    .ok();
-    writeln!(
-        target,
-        "Developed by Mahmoud Al-Qudsi and other syngestures contributors"
-    )
-    .ok();
-    writeln!(
-        target,
-        "Report bugs at <https://github.com/mqudsi/syngesture>"
-    )
-    .ok();
+    );
+
+    for line in [
+        "Developed by Mahmoud Al-Qudsi and other syngestures contributors",
+        "Report bugs at <https://github.com/mqudsi/syngesture>",
+    ] {
+        writeln!(target, "{line}").ok();
+    }
 }
 
 fn print_help<W: std::io::Write>(target: &mut W) {
@@ -131,19 +128,15 @@ fn main() {
                 };
 
                 // Event: time 1593656931.306879, -------------- SYN_REPORT ------------
-                if searcher.find(line).is_some() {
+                if searcher.find(&line).is_some() {
                     if let Some(gesture) = event_loop.update() {
                         swipe_handler(&gestures, gesture);
                     }
-                    continue;
-                }
-
-                if let Some(captures) = event_regex.captures(&line) {
-                    let time: f64 = std::str::from_utf8(&captures[1]).unwrap().parse().unwrap();
-                    let event_type: u8 =
-                        std::str::from_utf8(&captures[2]).unwrap().parse().unwrap();
-                    let code: u16 = std::str::from_utf8(&captures[3]).unwrap().parse().unwrap();
-                    let value: i32 = std::str::from_utf8(&captures[4]).unwrap().parse().unwrap();
+                } else if let Some(captures) = event_regex.captures(&line) {
+                    let time: f64 = str::from_utf8(&captures[1]).unwrap().parse().unwrap();
+                    let event_type: u8 = str::from_utf8(&captures[2]).unwrap().parse().unwrap();
+                    let code: u16 = str::from_utf8(&captures[3]).unwrap().parse().unwrap();
+                    let value: i32 = str::from_utf8(&captures[4]).unwrap().parse().unwrap();
 
                     trace!("{}", String::from_utf8_lossy(line));
                     event_loop.add_event(time, event_type, code, value);
@@ -216,14 +209,3 @@ fn which(target: &str) -> Option<PathBuf> {
 
     return None;
 }
-
-// fn xdotool(command: &'static str, actions: &'static str) {
-//     use std::thread;
-//
-//     thread::spawn(move || {
-//         Command::new("xdotool")
-//             .args(&[command, actions])
-//             .output()
-//             .expect("Failed to run xdotool");
-//     });
-// }
