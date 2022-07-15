@@ -100,8 +100,9 @@ fn main() {
     );
 
     let searcher = std::sync::Arc::new(
-        aho_corasick::packed::Searcher::new([b"SYN_REPORT"])
-            .expect("Failed to build aho-corasick searcher!"),
+        aho_corasick::AhoCorasickBuilder::new()
+            .dfa(true)
+            .build([b"SYN_REPORT"]),
     );
 
     let mut threads = Vec::new();
@@ -130,7 +131,7 @@ fn main() {
                 };
 
                 // Event: time 1593656931.306879, -------------- SYN_REPORT ------------
-                if searcher.find(b"SYN_REPORT").is_some() {
+                if searcher.find(line).is_some() {
                     if let Some(gesture) = event_loop.update() {
                         swipe_handler(&gestures, gesture);
                     }
