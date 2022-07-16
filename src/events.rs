@@ -346,42 +346,42 @@ impl TouchpadState {
                     // Finger state removed
                     // Assuming we never miss an event, the finger should always have started
                     (EventType::EV_KEY, EventCode::BTN_TOOL_FINGER) if event.value == 0 => {
-                        if prev_finger_start.is_some() {
+                        if let Some(prev_finger_start) = prev_finger_start {
                             debug!(
                                 "one finger remove {}",
-                                event.time - prev_finger_start.unwrap()
+                                event.time - prev_finger_start
                             );
-                            self.one_finger_duration += event.time - prev_finger_start.unwrap();
+                            self.one_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_DOUBLETAP) if event.value == 0 => {
-                        if prev_finger_start.is_some() {
+                        if let Some(prev_finger_start) = prev_finger_start {
                             debug!(
                                 "two finger remove {}",
-                                event.time - prev_finger_start.unwrap()
+                                event.time - prev_finger_start
                             );
-                            self.two_finger_duration += event.time - prev_finger_start.unwrap();
+                            self.two_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_TRIPLETAP) if event.value == 0 => {
-                        if prev_finger_start.is_some() {
+                        if let Some(prev_finger_start) = prev_finger_start {
                             debug!(
                                 "three finger remove {}",
-                                event.time - prev_finger_start.unwrap()
+                                event.time - prev_finger_start
                             );
-                            self.three_finger_duration += event.time - prev_finger_start.unwrap();
+                            self.three_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
                     (EventType::EV_KEY, EventCode::BTN_TOOL_QUADTAP) if event.value == 0 => {
-                        if prev_finger_start.is_some() {
+                        if let Some(prev_finger_start) = prev_finger_start {
                             debug!(
                                 "four finger remove {}",
-                                event.time - prev_finger_start.unwrap()
+                                event.time - prev_finger_start
                             );
-                            self.four_finger_duration += event.time - prev_finger_start.unwrap();
+                            self.four_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
