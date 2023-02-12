@@ -356,6 +356,18 @@ impl TouchpadState {
                         self.last_finger = None;
                     }
 
+                    // Physical button press registered ("force touch")
+                    (
+                        EventType::EV_KEY,
+                        EventCode::EV_KEY(EV_KEY::BTN_LEFT | EV_KEY::BTN_RIGHT),
+                    ) => {
+                        // If any gesture ended up pressing hard enough to trigger a physical click
+                        // event, discard all the events in the report altogether.
+                        debug!("disregarding gesture that included a physical button press");
+                        reset = true;
+                        break;
+                    }
+
                     // Tracking complete event
                     (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID))
                         if event.value == -1 =>
