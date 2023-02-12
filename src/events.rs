@@ -39,22 +39,22 @@ impl EventLoop {
                 self.report.events.clear();
                 result
             }
-            EventCode::EV_ABS(_) => {
+            EventCode::EV_ABS(code) => {
                 let time = time.tv_sec as f64 + time.tv_usec as f64 * 1E-6;
                 self.report.events.push(SynEvent {
                     time,
                     evt_type: EventType::EV_ABS,
-                    code: event_code,
+                    code: code as u16,
                     value: event_value,
                 });
                 None
             }
-            EventCode::EV_KEY(_) => {
+            EventCode::EV_KEY(code) => {
                 let time = time.tv_sec as f64 + time.tv_usec as f64 * 1E-6;
                 self.report.events.push(SynEvent {
                     time,
                     evt_type: EventType::EV_KEY,
-                    code: event_code,
+                    code: code as u16,
                     value: event_value,
                 });
                 None
@@ -91,7 +91,7 @@ pub(crate) enum Fingers {
 struct SynEvent {
     time: f64,
     evt_type: EventType,
-    code: EventCode,
+    code: u16,
     value: i32,
 }
 
@@ -250,7 +250,10 @@ impl TouchpadState {
                 }
                 self.last_ts = event.time;
 
-                match (&event.evt_type, &event.code) {
+                match (
+                    &event.evt_type,
+                    int_to_event_code(event.evt_type, event.code),
+                ) {
                     (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_X)) => {
                         // Overall location, regardless of tool
                         overall_x = Some(event.value);
@@ -451,5 +454,15 @@ impl TouchpadState {
             debug!("Gesture ignored by debounce");
             None
         }
+    }
+}
+
+fn int_to_event_code(ev_type: EventType, ev_code: u16) -> EventCode {
+    // Since we converted the enum to a u16 in the first place, it is perfectly safe
+    // to change it back as we know it'll be within the expected range of values.
+    match ev_type {
+        EventType::EV_ABS => EventCode::EV_ABS(unsafe { std::mem::transmute(ev_code as u8) }),
+        EventType::EV_KEY => EventCode::EV_KEY(unsafe { std::mem::transmute(ev_code as u16) }),
+        _ => unimplemented!(),
     }
 }
