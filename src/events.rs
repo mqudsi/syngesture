@@ -1,6 +1,8 @@
 use log::{debug, trace};
 use serde::Deserialize;
 use serde_repr::*;
+use evdev_rs::TimeVal;
+use evdev_rs::enums::*;
 
 /// The maximum travel before a tap is considered a swipe, in millimeters.
 const MAX_TAP_DISTANCE: f64 = 100f64;
@@ -24,81 +26,37 @@ impl EventLoop {
         }
     }
 
-    pub fn add_event(&mut self, time: f64, event_type: u8, event_code: u16, event_value: i32) {
-        let event_type: EventType = match toml::Value::Integer(event_type as i64).try_into() {
-            Ok(value) => value,
-            Err(_) => {
-                trace!("Unsupported event_type {}", event_type);
-                return;
+    pub fn add_event(&mut self, time: TimeVal, event_code: EventCode, event_value: i32) -> Option<Gesture> {
+        match event_code {
+            EventCode::EV_SYN(EV_SYN::SYN_REPORT) => {
+                debug!("Processing report with {} events", self.report.events.len());
+                let result = self.state.update(&mut self.report);
+                self.report.events.clear();
+                result
             }
-        };
-        let event_code: EventCode = match toml::Value::Integer(event_code as i64).try_into() {
-            Ok(value) => value,
-            Err(_) => {
-                trace!("Unsupported event_code {}", event_code);
-                return;
+            EventCode::EV_ABS(_) => {
+                let time = time.tv_sec as f64 + time.tv_usec as f64 * 1E-6;
+                self.report.events.push(SynEvent {
+                    time,
+                    evt_type: EventType::EV_ABS,
+                    code: event_code,
+                    value: event_value,
+                });
+                None
             }
-        };
-
-        self.report.events.push(SynEvent {
-            time,
-            evt_type: event_type,
-            code: event_code,
-            value: event_value,
-        });
+            EventCode::EV_KEY(_) => {
+                let time = time.tv_sec as f64 + time.tv_usec as f64 * 1E-6;
+                self.report.events.push(SynEvent {
+                    time,
+                    evt_type: EventType::EV_KEY,
+                    code: event_code,
+                    value: event_value,
+                });
+                None
+            }
+            _ => None,
+        }
     }
-
-    pub fn update(&mut self) -> Option<Gesture> {
-        // eprintln!("Processing report with {} events", self.report.events.len());
-        let result = self.state.update(&mut self.report);
-        self.report.events.clear();
-        return result;
-    }
-}
-
-#[allow(non_camel_case_types, unused)]
-#[derive(Deserialize_repr, Clone, Copy, Debug, PartialEq)]
-#[repr(u8)]
-enum EventType {
-    /// Unknown
-    EV_SYN = 0,
-    EV_KEY = 1,
-    /// Absolute value pertaining to touchpad state (independent variable)
-    EV_ABS = 3,
-}
-
-// Until it's proven that the different namespaces can collide (e.g. ABS_* and BTN_* sharing
-// values), just keep them in one enum for our own sanity.
-#[allow(non_camel_case_types, unused)]
-#[derive(Deserialize_repr, Clone, Copy, Debug, PartialEq, PartialOrd)]
-#[repr(u16)]
-enum EventCode {
-    // Absolute Events (reported per-tool)
-    /// The overall x location, not differentiated by slot.
-    ABS_X = 0,
-    /// The overall y location, not differentiated by slot.
-    ABS_Y = 1,
-    /// The overall pressure, not differentiated by slot.
-    ABS_PRESSURE = 24,
-    /// The slot identifier
-    ABS_MT_SLOT = 47,
-    /// The per-tool x location
-    ABS_MT_POSITION_X = 53,
-    /// The per-tool y location
-    ABS_MT_POSITION_Y = 54,
-    /// The id of the tool being tracked in this slot
-    ABS_MT_TRACKING_ID = 57,
-    /// The per-tool pressure
-    ABS_MT_PRESSURE = 58,
-
-    // Key Events (reported globally)
-    BTN_LEFT = 272,
-    BTN_TOOL_FINGER = 325,
-    BTN_TOUCH = 330,
-    BTN_TOOL_DOUBLETAP = 333,
-    BTN_TOOL_TRIPLETAP = 334,
-    BTN_TOOL_QUADTAP = 335,
-    BTN_TOOL_QUINTTAP = 328,
 }
 
 #[derive(Deserialize, Debug, PartialEq, PartialOrd, Eq, Ord)]
@@ -288,15 +246,15 @@ impl TouchpadState {
                 self.last_ts = event.time;
 
                 match (&event.evt_type, &event.code) {
-                    (EventType::EV_ABS, EventCode::ABS_X) => {
+                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_X)) => {
                         // Overall location, regardless of tool
                         overall_x = Some(event.value);
                     }
-                    (EventType::EV_ABS, EventCode::ABS_Y) => {
+                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_Y)) => {
                         // Overall location, regardless of tool
                         overall_y = Some(event.value);
                     }
-                    (EventType::EV_ABS, EventCode::ABS_MT_SLOT) => {
+                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_SLOT)) => {
                         // This just tells us we're using a multitouch-capable trackpad and the
                         // id of the slot that contains information about the tool (finger) being
                         // tracked.
@@ -304,7 +262,7 @@ impl TouchpadState {
                         self.slot_states[slot_id] = Some(Default::default());
                         slot = &mut self.slot_states[slot_id];
                     }
-                    (EventType::EV_ABS, EventCode::ABS_MT_POSITION_X) => {
+                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X)) => {
                         slot_x = Some(event.value);
                         if slot_y.is_some() {
                             slot.as_mut()
@@ -312,7 +270,7 @@ impl TouchpadState {
                                 .push_position(slot_x.take().unwrap(), slot_y.take().unwrap());
                         }
                     }
-                    (EventType::EV_ABS, EventCode::ABS_MT_POSITION_Y) => {
+                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y)) => {
                         slot_y = Some(event.value);
                         if slot_x.is_some() {
                             slot.as_mut()
@@ -322,22 +280,22 @@ impl TouchpadState {
                     }
 
                     // Finger state applied
-                    (EventType::EV_KEY, EventCode::BTN_TOOL_FINGER) if event.value == 1 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER)) if event.value == 1 => {
                         debug!("one finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::One);
                     }
-                    (EventType::EV_KEY, EventCode::BTN_TOOL_DOUBLETAP) if event.value == 1 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP)) if event.value == 1 => {
                         debug!("two finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Two);
                     }
-                    (EventType::EV_KEY, EventCode::BTN_TOOL_TRIPLETAP) if event.value == 1 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP)) if event.value == 1 => {
                         debug!("three finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Three);
                     }
-                    (EventType::EV_KEY, EventCode::BTN_TOOL_QUADTAP) if event.value == 1 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP)) if event.value == 1 => {
                         debug!("four finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Four);
@@ -345,7 +303,7 @@ impl TouchpadState {
 
                     // Finger state removed
                     // Assuming we never miss an event, the finger should always have started
-                    (EventType::EV_KEY, EventCode::BTN_TOOL_FINGER) if event.value == 0 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER)) if event.value == 0 => {
                         if let Some(prev_finger_start) = prev_finger_start {
                             debug!(
                                 "one finger remove {}",
@@ -355,7 +313,7 @@ impl TouchpadState {
                         }
                         self.last_finger = None;
                     }
-                    (EventType::EV_KEY, EventCode::BTN_TOOL_DOUBLETAP) if event.value == 0 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP)) if event.value == 0 => {
                         if let Some(prev_finger_start) = prev_finger_start {
                             debug!(
                                 "two finger remove {}",
@@ -365,7 +323,7 @@ impl TouchpadState {
                         }
                         self.last_finger = None;
                     }
-                    (EventType::EV_KEY, EventCode::BTN_TOOL_TRIPLETAP) if event.value == 0 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP)) if event.value == 0 => {
                         if let Some(prev_finger_start) = prev_finger_start {
                             debug!(
                                 "three finger remove {}",
@@ -375,7 +333,7 @@ impl TouchpadState {
                         }
                         self.last_finger = None;
                     }
-                    (EventType::EV_KEY, EventCode::BTN_TOOL_QUADTAP) if event.value == 0 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP)) if event.value == 0 => {
                         if let Some(prev_finger_start) = prev_finger_start {
                             debug!(
                                 "four finger remove {}",
@@ -387,7 +345,7 @@ impl TouchpadState {
                     }
 
                     // Tracking complete event
-                    (EventType::EV_ABS, EventCode::ABS_MT_TRACKING_ID) if event.value == -1 => {
+                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID)) if event.value == -1 => {
                         slot.as_mut().unwrap().complete = true;
                     }
 

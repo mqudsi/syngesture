@@ -2,10 +2,9 @@ mod config;
 mod events;
 
 use config::Action;
+use evdev_rs::Device as EvDevice;
 use events::{EventLoop, Gesture};
 use log::{info, trace, warn};
-use regex::bytes::Regex;
-use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::str;
@@ -59,7 +58,18 @@ fn print_help<W: std::io::Write>(target: &mut W) {
     );
 }
 
+#[cfg(feature = "debug")]
+fn init_logger() {
+    if std::env::var_os("RUST_LOG").is_none() {
+        std::env::set_var("RUST_LOG", "trace");
+    }
+    pretty_env_logger::init();
+}
+
 fn main() {
+    #[cfg(feature = "debug")]
+    init_logger();
+
     let args = std::env::args();
     for arg in args.skip(1) {
         match arg.as_str() {
@@ -81,71 +91,45 @@ fn main() {
 
     let config = config::load();
 
-    if which("evtest").is_none() {
-        eprintln!("Cannot find `evtest` - make sure it is installed and try again!");
-        std::process::exit(-1);
-    }
-
     if config.devices.is_empty() {
         eprintln!("No configured devices");
         std::process::exit(-1);
     }
 
-    // Event: time 1593656931.323635, type 3 (EV_ABS), code 47 (ABS_MT_SLOT), value 0
-    let event_regex = std::sync::Arc::new(
-        Regex::new(r#"^Event: time (\d+\.\d+), type (\d+) .* code (\d+) .* value (\d+)"#).unwrap(),
-    );
-
-    let searcher = std::sync::Arc::new(
-        aho_corasick::AhoCorasickBuilder::new()
-            .dfa(true)
-            .build([b"SYN_REPORT"]),
-    );
-
     let mut threads = Vec::new();
-    for (device, gestures) in config.devices {
-        let event_regex = event_regex.clone();
-        let searcher = searcher.clone();
+    for (device_path, gestures) in config.devices {
+        let device = match EvDevice::new_from_path(&device_path) {
+            Ok(device) => device,
+            Err(e) => {
+                eprintln!("{}: {}", device_path, e);
+                continue;
+            }
+        };
         let handle = std::thread::spawn(move || {
+            use evdev_rs::{InputEvent, ReadFlag, ReadStatus};
+            use evdev_rs::enums::*;
+
             let mut event_loop = EventLoop::new();
-
-            let mut evtest = Command::new("evtest")
-                .args(&[&device])
-                .stdout(Stdio::piped())
-                .stderr(Stdio::inherit())
-                .spawn()
-                .unwrap();
-
-            let mut reader = BufReader::new(evtest.stdout.take().unwrap());
-            let mut line = Vec::new();
-
+            let mut read_flag = ReadFlag::NORMAL;
             loop {
-                line.clear();
-                let line = match reader.read_until(b'\n', &mut line) {
-                    Ok(0) => break,
-                    Ok(bytes_read) => &line[..bytes_read - 1],
-                    Err(_) => break,
+                let event = match device.next_event(read_flag) {
+                    Ok((ReadStatus::Success, event)) => event,
+                    Ok((ReadStatus::Sync, InputEvent { event_code: EventCode::EV_SYN(EV_SYN::SYN_DROPPED), .. })) => {
+                        read_flag = ReadFlag::SYNC;
+                        continue;
+                    }
+                    Ok((ReadStatus::Sync, event)) => event,
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+                    Err(e) => {
+                        eprintln!("{}: {}", device_path, e);
+                        break;
+                    }
                 };
 
-                // Event: time 1593656931.306879, -------------- SYN_REPORT ------------
-                if searcher.find(&line).is_some() {
-                    if let Some(gesture) = event_loop.update() {
-                        swipe_handler(&gestures, gesture);
-                    }
-                } else if let Some(captures) = event_regex.captures(&line) {
-                    let time: f64 = str::from_utf8(&captures[1]).unwrap().parse().unwrap();
-                    let event_type: u8 = str::from_utf8(&captures[2]).unwrap().parse().unwrap();
-                    let code: u16 = str::from_utf8(&captures[3]).unwrap().parse().unwrap();
-                    let value: i32 = str::from_utf8(&captures[4]).unwrap().parse().unwrap();
-
-                    trace!("{}", String::from_utf8_lossy(line));
-                    event_loop.add_event(time, event_type, code, value);
+                if let Some(gesture) = event_loop.add_event(event.time, event.event_code, event.value) {
+                    swipe_handler(&gestures, gesture);
                 }
             }
-
-            // Reap the evtest child process to prevent a zombie apocalypse
-            let _ = evtest.kill();
-            let _ = evtest.wait();
         });
         threads.push(handle);
     }
