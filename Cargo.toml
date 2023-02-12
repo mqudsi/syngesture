@@ -21,5 +21,5 @@ serde_repr = "0.1.8"
 toml = "0.5.9"
 
 [features]
-default = ["debug"]
+default = []
 debug = ["dep:pretty_env_logger"]
