@@ -226,7 +226,7 @@ impl TouchpadState {
         self.four_finger_duration = 0f64;
     }
 
-    pub fn update(&mut self, report: &mut SynReport) -> Option<Gesture> {
+    fn update(&mut self, report: &mut SynReport) -> Option<Gesture> {
         let mut reset = false;
         let mut overall_x = None;
         let mut overall_y = None;
@@ -250,19 +250,16 @@ impl TouchpadState {
                 }
                 self.last_ts = event.time;
 
-                match (
-                    &event.evt_type,
-                    int_to_event_code(event.evt_type, event.code),
-                ) {
-                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_X)) => {
+                match int_to_event_code(event.evt_type, event.code) {
+                    EventCode::EV_ABS(EV_ABS::ABS_X) => {
                         // Overall location, regardless of tool
                         overall_x = Some(event.value);
                     }
-                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_Y)) => {
+                    EventCode::EV_ABS(EV_ABS::ABS_Y) => {
                         // Overall location, regardless of tool
                         overall_y = Some(event.value);
                     }
-                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_SLOT)) => {
+                    EventCode::EV_ABS(EV_ABS::ABS_MT_SLOT) => {
                         // This just tells us we're using a multitouch-capable trackpad and the
                         // id of the slot that contains information about the tool (finger) being
                         // tracked.
@@ -270,7 +267,7 @@ impl TouchpadState {
                         self.slot_states[slot_id] = Some(Default::default());
                         slot = &mut self.slot_states[slot_id];
                     }
-                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X)) => {
+                    EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
                         slot_x = Some(event.value);
                         if slot_y.is_some() {
                             slot.as_mut()
@@ -278,7 +275,7 @@ impl TouchpadState {
                                 .push_position(slot_x.take().unwrap(), slot_y.take().unwrap());
                         }
                     }
-                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y)) => {
+                    EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y) => {
                         slot_y = Some(event.value);
                         if slot_x.is_some() {
                             slot.as_mut()
@@ -288,30 +285,22 @@ impl TouchpadState {
                     }
 
                     // Finger state applied
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER))
-                        if event.value == 1 =>
-                    {
+                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if event.value == 1 => {
                         debug!("one finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::One);
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP))
-                        if event.value == 1 =>
-                    {
+                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP) if event.value == 1 => {
                         debug!("two finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Two);
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP))
-                        if event.value == 1 =>
-                    {
+                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP) if event.value == 1 => {
                         debug!("three finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Three);
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP))
-                        if event.value == 1 =>
-                    {
+                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP) if event.value == 1 => {
                         debug!("four finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Four);
@@ -319,36 +308,28 @@ impl TouchpadState {
 
                     // Finger state removed
                     // Assuming we never miss an event, the finger should always have started
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER))
-                        if event.value == 0 =>
-                    {
+                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if event.value == 0 => {
                         if let Some(prev_finger_start) = prev_finger_start {
                             debug!("one finger remove {}", event.time - prev_finger_start);
                             self.one_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP))
-                        if event.value == 0 =>
-                    {
+                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP) if event.value == 0 => {
                         if let Some(prev_finger_start) = prev_finger_start {
                             debug!("two finger remove {}", event.time - prev_finger_start);
                             self.two_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP))
-                        if event.value == 0 =>
-                    {
+                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP) if event.value == 0 => {
                         if let Some(prev_finger_start) = prev_finger_start {
                             debug!("three finger remove {}", event.time - prev_finger_start);
                             self.three_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP))
-                        if event.value == 0 =>
-                    {
+                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP) if event.value == 0 => {
                         if let Some(prev_finger_start) = prev_finger_start {
                             debug!("four finger remove {}", event.time - prev_finger_start);
                             self.four_finger_duration += event.time - prev_finger_start;
@@ -357,10 +338,7 @@ impl TouchpadState {
                     }
 
                     // Physical button press registered ("force touch")
-                    (
-                        EventType::EV_KEY,
-                        EventCode::EV_KEY(EV_KEY::BTN_LEFT | EV_KEY::BTN_RIGHT),
-                    ) => {
+                    EventCode::EV_KEY(EV_KEY::BTN_LEFT | EV_KEY::BTN_RIGHT) => {
                         // If any gesture ended up pressing hard enough to trigger a physical click
                         // event, discard all the events in the report altogether.
                         debug!("disregarding gesture that included a physical button press");
@@ -369,9 +347,7 @@ impl TouchpadState {
                     }
 
                     // Tracking complete event
-                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID))
-                        if event.value == -1 =>
-                    {
+                    EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID) if event.value == -1 => {
                         slot.as_mut().unwrap().complete = true;
                     }
 
