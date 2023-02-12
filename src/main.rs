@@ -8,6 +8,7 @@ use evdev_rs::Device as EvDevice;
 use events::{EventLoop, Gesture};
 #[allow(unused)]
 use log::{debug, info, trace, warn};
+use std::io::ErrorKind;
 use std::os::fd::AsRawFd;
 use std::process::Command;
 
@@ -117,7 +118,7 @@ fn main() {
 
             let mut event_loop = EventLoop::new();
             let mut read_flag = ReadFlag::NORMAL;
-            loop {
+            'device: loop {
                 let event = match device.next_event(read_flag) {
                     Ok((ReadStatus::Success, event)) => event,
                     Ok((
@@ -134,9 +135,16 @@ fn main() {
                     Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                         read_flag = ReadFlag::NORMAL;
                         trace!("EAGAIN");
-                        epoll.wait(None).unwrap();
-                        trace!("READY");
-                        continue;
+                        loop {
+                            match epoll.wait(None) {
+                                Ok(()) => continue 'device,
+                                Err(e) if e.kind() == ErrorKind::Interrupted => continue,
+                                Err(e) => {
+                                    eprintln!("epoll_wait: {e}");
+                                    break 'device;
+                                }
+                            }
+                        }
                     }
                     Err(e) => {
                         eprintln!("{device_path}: {e}");
