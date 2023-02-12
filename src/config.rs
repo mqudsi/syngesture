@@ -1,3 +1,5 @@
+#[allow(unused)]
+use crate::{trace, debug, info, warn, error};
 use crate::events::*;
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -71,10 +73,10 @@ pub(crate) fn load() -> Configuration {
     load_user_config(&mut config);
 
     if config.devices.is_empty() {
-        eprintln!("No configuration found!");
+        error!("No configuration found!");
         eprintln!("Searched for configuration files in the following locations:");
         for dir in config_dirs() {
-            eprintln!("* {}", dir);
+            eprintln!("* {dir}");
         }
     }
 
@@ -83,7 +85,7 @@ pub(crate) fn load() -> Configuration {
 
 fn try_load_config_file(config: &mut Configuration, path: &Path) {
     if let Err(e) = load_config_file(config, &path) {
-        eprintln!(
+        error!(
             "Error loading configuration file at {}: {}",
             path.display(),
             e
@@ -93,7 +95,7 @@ fn try_load_config_file(config: &mut Configuration, path: &Path) {
 
 fn try_load_config_dir(config: &mut Configuration, dir: &Path) {
     if let Err(e) = load_config_dir(config, &dir) {
-        eprintln!(
+        error!(
             "Error reading from configuration directory {}: {}",
             dir.display(),
             e
@@ -105,9 +107,9 @@ fn load_user_config(mut config: &mut Configuration) {
     let config_home = match std::env::var_os("XDG_CONFIG_HOME") {
         Some(xdg_config_home) => PathBuf::from(xdg_config_home),
         None => match get_user_config_dir() {
-            Ok(dir) => PathBuf::from(dir),
+            Ok(dir) => dir,
             Err(e) => {
-                eprintln!("{}", e);
+                error!("{e}");
                 return;
             }
         },
@@ -146,10 +148,9 @@ fn load_config_dir(mut config: &mut Configuration, dir: &Path) -> Result<()> {
         let item = match item {
             Ok(item) => item,
             Err(e) => {
-                eprintln!(
-                    "Error reading file from configuration directory {}: {}",
-                    dir.display(),
-                    e
+                error!(
+                    "Error reading file from configuration directory {}: {e}",
+                    dir.display()
                 );
                 continue;
             }
@@ -171,7 +172,7 @@ fn load_config_dir(mut config: &mut Configuration, dir: &Path) -> Result<()> {
         };
 
         if let Err(e) = process_item(&item) {
-            eprintln!("Error loading {}: {}", item.path().to_string_lossy(), e);
+            error!("Error loading {}: {e}", item.path().display());
         }
     }
 

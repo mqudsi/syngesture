@@ -1,6 +1,7 @@
+#[allow(unused)]
+use crate::{trace, debug, info, warn, error};
 use evdev_rs::enums::*;
 use evdev_rs::TimeVal;
-use log::{debug, trace};
 use serde::Deserialize;
 use serde_repr::*;
 
@@ -419,7 +420,7 @@ impl TouchpadState {
             None => 0f64,
         };
 
-        debug!("Distance: {}", distance);
+        debug!("Distance: {distance}");
 
         trace!("self.last_ts: {}", self.last_ts);
         trace!("self.last_gesture_time: {}", self.last_gesture_time);

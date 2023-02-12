@@ -1,13 +1,13 @@
 mod config;
 mod epoll;
 mod events;
+#[macro_use]
+mod macros;
 
 use config::Action;
 use epoll::Epoll;
 use evdev_rs::Device as EvDevice;
 use events::{EventLoop, Gesture};
-#[allow(unused)]
-use log::{debug, info, trace, warn};
 use std::io::ErrorKind;
 use std::os::fd::AsRawFd;
 use std::process::Command;
@@ -40,18 +40,18 @@ fn print_help<W: std::io::Write>(target: &mut W) {
         "A valid syngestures config file must be installed to one of the",
         "following locations before executing syngestures:",
     ] {
-        writeln!(target, "{}", line).ok();
+        writeln!(target, "{line}").ok();
     }
 
     for dir in config::config_dirs() {
-        writeln!(target, "  * {}", dir).ok();
+        writeln!(target, "  * {dir}").ok();
     }
 
     for line in [
         "",
         "A sample configuration file can be found in the package tarball or online at",
     ] {
-        writeln!(target, "{}", line).ok();
+        writeln!(target, "{line}").ok();
     }
 
     let _ = writeln!(
@@ -61,7 +61,7 @@ fn print_help<W: std::io::Write>(target: &mut W) {
     );
 }
 
-#[cfg(feature = "debug")]
+#[cfg(feature = "logging")]
 fn init_logger() {
     if std::env::var_os("RUST_LOG").is_none() {
         std::env::set_var("RUST_LOG", "trace");
@@ -70,7 +70,7 @@ fn init_logger() {
 }
 
 fn main() {
-    #[cfg(feature = "debug")]
+    #[cfg(feature = "logging")]
     init_logger();
 
     let args = std::env::args();
@@ -85,7 +85,7 @@ fn main() {
                 std::process::exit(0);
             }
             _ => {
-                eprintln!("{}: Invalid option!", arg);
+                eprintln!("{arg}: Invalid option!");
                 eprintln!("Try 'syngestures --help' for more info");
                 std::process::exit(-1);
             }
@@ -95,7 +95,7 @@ fn main() {
     let config = config::load();
 
     if config.devices.is_empty() {
-        eprintln!("No configured devices");
+        error!("No configured devices");
         std::process::exit(-1);
     }
 
@@ -104,7 +104,7 @@ fn main() {
         let device = match EvDevice::new_from_path(&device_path) {
             Ok(device) => device,
             Err(e) => {
-                eprintln!("{device_path}: {e}");
+                error!("{device_path}: {e}");
                 continue;
             }
         };
@@ -132,7 +132,7 @@ fn main() {
                         continue;
                     }
                     Ok((ReadStatus::Sync, event)) => event,
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    Err(e) if e.kind() == ErrorKind::WouldBlock => {
                         read_flag = ReadFlag::NORMAL;
                         trace!("EAGAIN");
                         loop {
@@ -140,14 +140,14 @@ fn main() {
                                 Ok(()) => continue 'device,
                                 Err(e) if e.kind() == ErrorKind::Interrupted => continue,
                                 Err(e) => {
-                                    eprintln!("epoll_wait: {e}");
+                                    error!("epoll_wait: {e}");
                                     break 'device;
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        eprintln!("{device_path}: {e}");
+                        error!("{device_path}: {e}");
                         break;
                     }
                 };
@@ -175,14 +175,14 @@ fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
     };
 
     match action {
-        &Action::None => {}
-        &Action::Execute(ref cmd) => {
+        Action::None => {}
+        Action::Execute(cmd) => {
             let mut shell = Command::new("sh");
             shell.args(&["-c", cmd]);
             let mut child = match shell.spawn() {
                 Ok(child) => child,
                 Err(e) => {
-                    eprintln!("{e}");
+                    error!("{e}");
                     return;
                 }
             };
