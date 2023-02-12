@@ -219,6 +219,7 @@ name = "syngestures"
 version = "1.0.1"
 dependencies = [
  "evdev-rs",
+ "libc",
  "log",
  "pretty_env_logger",
  "serde",

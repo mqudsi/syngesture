@@ -1,8 +1,8 @@
+use evdev_rs::enums::*;
+use evdev_rs::TimeVal;
 use log::{debug, trace};
 use serde::Deserialize;
 use serde_repr::*;
-use evdev_rs::TimeVal;
-use evdev_rs::enums::*;
 
 /// The maximum travel before a tap is considered a swipe, in millimeters.
 const MAX_TAP_DISTANCE: f64 = 100f64;
@@ -26,7 +26,12 @@ impl EventLoop {
         }
     }
 
-    pub fn add_event(&mut self, time: TimeVal, event_code: EventCode, event_value: i32) -> Option<Gesture> {
+    pub fn add_event(
+        &mut self,
+        time: TimeVal,
+        event_code: EventCode,
+        event_value: i32,
+    ) -> Option<Gesture> {
         match event_code {
             EventCode::EV_SYN(EV_SYN::SYN_REPORT) => {
                 debug!("Processing report with {} events", self.report.events.len());
@@ -280,22 +285,30 @@ impl TouchpadState {
                     }
 
                     // Finger state applied
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER)) if event.value == 1 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER))
+                        if event.value == 1 =>
+                    {
                         debug!("one finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::One);
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP)) if event.value == 1 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP))
+                        if event.value == 1 =>
+                    {
                         debug!("two finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Two);
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP)) if event.value == 1 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP))
+                        if event.value == 1 =>
+                    {
                         debug!("three finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Three);
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP)) if event.value == 1 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP))
+                        if event.value == 1 =>
+                    {
                         debug!("four finger press");
                         self.finger_start = Some(event.time);
                         self.last_finger.replace(Fingers::Four);
@@ -303,49 +316,47 @@ impl TouchpadState {
 
                     // Finger state removed
                     // Assuming we never miss an event, the finger should always have started
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER)) if event.value == 0 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER))
+                        if event.value == 0 =>
+                    {
                         if let Some(prev_finger_start) = prev_finger_start {
-                            debug!(
-                                "one finger remove {}",
-                                event.time - prev_finger_start
-                            );
+                            debug!("one finger remove {}", event.time - prev_finger_start);
                             self.one_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP)) if event.value == 0 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP))
+                        if event.value == 0 =>
+                    {
                         if let Some(prev_finger_start) = prev_finger_start {
-                            debug!(
-                                "two finger remove {}",
-                                event.time - prev_finger_start
-                            );
+                            debug!("two finger remove {}", event.time - prev_finger_start);
                             self.two_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP)) if event.value == 0 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP))
+                        if event.value == 0 =>
+                    {
                         if let Some(prev_finger_start) = prev_finger_start {
-                            debug!(
-                                "three finger remove {}",
-                                event.time - prev_finger_start
-                            );
+                            debug!("three finger remove {}", event.time - prev_finger_start);
                             self.three_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
-                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP)) if event.value == 0 => {
+                    (EventType::EV_KEY, EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP))
+                        if event.value == 0 =>
+                    {
                         if let Some(prev_finger_start) = prev_finger_start {
-                            debug!(
-                                "four finger remove {}",
-                                event.time - prev_finger_start
-                            );
+                            debug!("four finger remove {}", event.time - prev_finger_start);
                             self.four_finger_duration += event.time - prev_finger_start;
                         }
                         self.last_finger = None;
                     }
 
                     // Tracking complete event
-                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID)) if event.value == -1 => {
+                    (EventType::EV_ABS, EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID))
+                        if event.value == -1 =>
+                    {
                         slot.as_mut().unwrap().complete = true;
                     }
 

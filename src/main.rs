@@ -1,13 +1,15 @@
 mod config;
+mod epoll;
 mod events;
 
 use config::Action;
+use epoll::Epoll;
 use evdev_rs::Device as EvDevice;
 use events::{EventLoop, Gesture};
-use log::{info, trace, warn};
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use std::str;
+#[allow(unused)]
+use log::{debug, info, trace, warn};
+use std::os::fd::AsRawFd;
+use std::process::Command;
 
 fn print_version<W: std::io::Write>(target: &mut W) {
     let _ = writeln!(
@@ -101,32 +103,49 @@ fn main() {
         let device = match EvDevice::new_from_path(&device_path) {
             Ok(device) => device,
             Err(e) => {
-                eprintln!("{}: {}", device_path, e);
+                eprintln!("{device_path}: {e}");
                 continue;
             }
         };
+        let device_fd = device.file().as_raw_fd();
         let handle = std::thread::spawn(move || {
-            use evdev_rs::{InputEvent, ReadFlag, ReadStatus};
             use evdev_rs::enums::*;
+            use evdev_rs::{InputEvent, ReadFlag, ReadStatus};
+
+            let mut epoll = Epoll::new().unwrap();
+            epoll.register_read(device_fd, false).unwrap();
 
             let mut event_loop = EventLoop::new();
             let mut read_flag = ReadFlag::NORMAL;
             loop {
                 let event = match device.next_event(read_flag) {
                     Ok((ReadStatus::Success, event)) => event,
-                    Ok((ReadStatus::Sync, InputEvent { event_code: EventCode::EV_SYN(EV_SYN::SYN_DROPPED), .. })) => {
+                    Ok((
+                        ReadStatus::Sync,
+                        InputEvent {
+                            event_code: EventCode::EV_SYN(EV_SYN::SYN_DROPPED),
+                            ..
+                        },
+                    )) => {
                         read_flag = ReadFlag::SYNC;
                         continue;
                     }
                     Ok((ReadStatus::Sync, event)) => event,
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        read_flag = ReadFlag::NORMAL;
+                        trace!("EAGAIN");
+                        epoll.wait(None).unwrap();
+                        trace!("READY");
+                        continue;
+                    }
                     Err(e) => {
-                        eprintln!("{}: {}", device_path, e);
+                        eprintln!("{device_path}: {e}");
                         break;
                     }
                 };
 
-                if let Some(gesture) = event_loop.add_event(event.time, event.event_code, event.value) {
+                let result = event_loop.add_event(event.time, event.event_code, event.value);
+                if let Some(gesture) = result {
                     swipe_handler(&gestures, gesture);
                 }
             }
@@ -155,7 +174,7 @@ fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
             let mut child = match shell.spawn() {
                 Ok(child) => child,
                 Err(e) => {
-                    eprintln!("{}", e);
+                    eprintln!("{e}");
                     return;
                 }
             };
@@ -168,28 +187,4 @@ fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
             });
         }
     }
-}
-
-fn which(target: &str) -> Option<PathBuf> {
-    use std::ffi::OsString;
-    use std::os::unix::prelude::OsStringExt;
-
-    let mut cmd = Command::new("which");
-    cmd.stdout(Stdio::piped());
-    cmd.stderr(Stdio::null());
-    cmd.args(&[target]);
-    let output = match cmd.output() {
-        Err(_) => {
-            warn!("Failed to find/execute `which`");
-            return None;
-        }
-        Ok(output) => output,
-    };
-
-    if output.status.success() {
-        let path = OsString::from_vec(output.stdout);
-        return Some(PathBuf::from(path));
-    }
-
-    return None;
 }
