@@ -55,6 +55,10 @@ alternatively, it may be downloaded, built, and installed directly via cargo:
 cargo install syngestures
 ```
 
+To build a version that logs events to the terminal for debugging, you will need to use
+`cargo install --path . --features logging` or `cargo install syngestures --features logging`
+instead.
+
 ## Configuration
 
 syngesture is configured via one or more TOML configuration files, a sample file [is included in this
