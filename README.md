@@ -109,9 +109,9 @@ $ ls -al /dev/input/by-path/pci-0000:00:15.0-platform-i2c_designware.0-event-mou
 lrwxrwxrwx 1 root root 9 Feb 11 16:16 /dev/input/by-path/pci-0000:00:15.0-platform-i2c_designware.0-event-mouse -> ../event4
 ```
 
-In this case, our `/dev/input/...` device is actually a symlink to another character device, so we
-need to use `ls -al` again to find out who actually owns it, replacing the final part of the device
-path (`pci-0000..`) with the symlink target (`../event4`):
+As you can see from the output, in this case our `/dev/input/...` device is actually a symlink to
+another character device, so we need to use `ls -al` again to find out who actually owns it,
+replacing the final part of the device path (`pci-0000..`) with the symlink target (`../event4`):
 
 ```sh
 $ ls -al /dev/input/by-path/../event4
