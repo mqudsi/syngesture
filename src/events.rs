@@ -1,7 +1,7 @@
-#[allow(unused)]
-use crate::{trace, debug, info, warn, error};
 use evdev_rs::enums::*;
 use evdev_rs::TimeVal;
+#[allow(unused)]
+use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use serde_repr::*;
 

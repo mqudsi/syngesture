@@ -1,6 +1,6 @@
-#[allow(unused)]
-use crate::{trace, debug, info, warn, error};
 use crate::events::*;
+#[allow(unused)]
+use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::ffi::OsStr;

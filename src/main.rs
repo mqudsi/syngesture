@@ -1,13 +1,15 @@
 mod config;
 mod epoll;
+#[cfg(not(feature = "logging"))]
+mod errorlog;
 mod events;
-#[macro_use]
-mod macros;
 
 use config::Action;
 use epoll::Epoll;
 use evdev_rs::Device as EvDevice;
 use events::{EventLoop, Gesture};
+#[allow(unused)]
+use log::{debug, error, info, trace, warn};
 use std::io::ErrorKind;
 use std::os::fd::AsRawFd;
 use std::process::Command;
@@ -69,8 +71,12 @@ fn init_logger() {
     pretty_env_logger::init();
 }
 
+#[cfg(not(feature = "logging"))]
+fn init_logger() {
+    errorlog::init();
+}
+
 fn main() {
-    #[cfg(feature = "logging")]
     init_logger();
 
     let args = std::env::args();
