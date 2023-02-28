@@ -140,12 +140,13 @@ fn main() {
                     Ok((ReadStatus::Sync, event)) => event,
                     Err(e) if e.kind() == ErrorKind::WouldBlock => {
                         read_flag = ReadFlag::NORMAL;
-                        trace!("EAGAIN");
                         loop {
                             match epoll.wait(None) {
                                 Ok(()) => continue 'device,
-                                Err(e) if e.kind() == ErrorKind::Interrupted => continue,
                                 Err(e) => {
+                                    if e.kind() == ErrorKind::Interrupted {
+                                        continue;
+                                    }
                                     error!("epoll_wait: {e}");
                                     break 'device;
                                 }

@@ -44,6 +44,7 @@ impl EventLoop {
                 result
             }
             EventCode::EV_ABS(code) => {
+                trace!("{code:?}: {event_value}");
                 let time = time.tv_sec as f64 + time.tv_usec as f64 * 1E-6;
                 self.report.events.push(SynEvent {
                     time,
@@ -54,6 +55,7 @@ impl EventLoop {
                 None
             }
             EventCode::EV_KEY(code) => {
+                trace!("{code:?}: {event_value}");
                 let time = time.tv_sec as f64 + time.tv_usec as f64 * 1E-6;
                 self.report.events.push(SynEvent {
                     time,
@@ -63,7 +65,10 @@ impl EventLoop {
                 });
                 None
             }
-            _ => None,
+            _ => {
+                trace!("<IGNORED> {event_code:?}: {event_value}");
+                None
+            }
         }
     }
 }
