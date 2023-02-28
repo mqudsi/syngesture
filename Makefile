@@ -40,8 +40,10 @@ test: build
 update:
 	@$(CARGO) update
 
-target/x86_64-unknown-linux-musl/release/syngestures: src/*.rs Cargo.toml Cargo.lock
-	env RUSTFLAGS= $(CARGO) build --release --target x86_64-unknown-linux-musl
+target/x86_64-unknown-linux-musl/release/syngestures: src/*.rs Cargo.toml Cargo.lock Makefile
+	env RUSTFLAGS= CFLAGS="-Os" CXXFLAGS="" \
+		CC="$$HOME/Downloads/x86_64-linux-musl-native/bin/gcc" \
+		$(CARGO) build --release --target x86_64-unknown-linux-musl --features logging
 	strip $@
 
 syngestures.tar.gz: syngestures.toml target/release/syngestures README.md LICENSE target/x86_64-unknown-linux-musl/release/syngestures
