@@ -7,8 +7,8 @@ use serde_repr::*;
 
 /// The maximum travel before a tap is considered a swipe, in millimeters.
 const MAX_TAP_DISTANCE: f64 = 100f64;
-/// The maximum number of tools (fingers) that are tracked and reported on simultaneously.
-const MAX_SLOTS: usize = 5;
+/// The maximum number of tools (fingers) that are initially tracked and reported on simultaneously.
+const INITIAL_SLOTS: usize = 5;
 /// How long before the event state resets
 const EVENT_TIMEOUT: f64 = 10_593_665_152f64;
 /// A new gesture (note: not a new report) will not be entertained in this timespan.
@@ -23,7 +23,10 @@ impl EventLoop {
     pub fn new() -> Self {
         Self {
             report: Default::default(),
-            state: Default::default(),
+            state: TouchpadState {
+                slot_states: vec![None; INITIAL_SLOTS],
+                ..Default::default()
+            },
         }
     }
 
@@ -118,7 +121,7 @@ pub(crate) enum Gesture {
     },
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct Position {
     x: i32,
     y: i32,
@@ -159,7 +162,7 @@ fn get_direction(pos1: &Position, pos2: &Position) -> Direction {
 /// `TouchpadState` tracks the status of all slots.
 #[derive(Debug, Default)]
 struct TouchpadState {
-    pub slot_states: [Option<SlotState>; MAX_SLOTS],
+    pub slot_states: Vec<Option<SlotState>>,
     pub start_xy: Option<Position>,
     pub end_xy: Option<Position>,
     pub last_ts: f64,
@@ -173,7 +176,7 @@ struct TouchpadState {
     pub four_finger_duration: f64,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct SlotState {
     pub complete: bool,
     // pub tool_id: Option<i32>,
@@ -213,7 +216,9 @@ impl SlotState {
 impl TouchpadState {
     pub fn reset(&mut self) {
         debug!("***RESET***");
-        self.slot_states = Default::default();
+        for slot in &mut self.slot_states {
+            *slot = None;
+        }
         self.start_xy = None;
         self.end_xy = None;
         // self.last_gesture_time should not be reset!
@@ -265,8 +270,15 @@ impl TouchpadState {
                         // id of the slot that contains information about the tool (finger) being
                         // tracked.
                         slot_id = event.value as usize;
-                        self.slot_states[slot_id] = Some(Default::default());
-                        slot = &mut self.slot_states[slot_id];
+                        slot = match self.slot_states.get_mut(slot_id) {
+                            Some(slot) => slot,
+                            None => {
+                                info!("Maximum slot count increased to {}", slot_id + 1);
+                                self.slot_states.resize(slot_id + 1, None);
+                                self.slot_states.get_mut(slot_id).unwrap()
+                            }
+                        };
+                        *slot = Some(Default::default());
                     }
                     EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
                         slot_x = Some(event.value);
