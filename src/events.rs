@@ -390,6 +390,22 @@ impl TouchpadState {
             self.max_fingers = self.last_finger;
         }
 
+        // Not all drivers produce ABS_X/ABS_Y to indicate the overall position. Apple Magic Mouse
+        // seems to only produce the per-tool ABS_MT_POSITION_X/Y but not the overall ABS_X/Y.
+        if overall_x.is_none() || overall_y.is_none() {
+            // We can use the average of the positions as the overall location or we can just pick
+            // a single tool and use that as a stand-in for our overall location.
+            let pos = self.slot_states.iter().find_map(|state| {
+                let Some(state) = state else {
+                    return None;
+                };
+                state.end_xy.as_ref().or(state.start_xy.as_ref())
+            });
+            if let Some(pos) = pos {
+                (overall_x, overall_y) = (Some(pos.x), Some(pos.y));
+            }
+        }
+
         if let (Some(x), Some(y)) = (overall_x.take(), overall_y.take()) {
             // We always consider a decrease in tool count to be a tear-down and ignore the change
             // in position.
@@ -400,13 +416,12 @@ impl TouchpadState {
             }
         }
 
+        debug!("Remaining fingers: {:?}", self.last_finger);
         if self.last_finger.is_none() {
             if let Some(gesture) = self.process() {
                 self.reset();
                 return Some(gesture);
             }
-        } else {
-            debug!("Remaining finger(s): {:?}", self.last_finger);
         }
 
         return None;
