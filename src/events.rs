@@ -252,8 +252,15 @@ impl TouchpadState {
                 *slot = Some(Default::default());
             }
             let mut slot = slot.as_mut().unwrap();
-            let mut slot_x = None;
-            let mut slot_y = None;
+            // Some drivers don't generate a matching ABS_MT_POSITION_X/Y counterpart if the tool
+            // hasn't moved on that axis (i.e. only moves in x or in y). Re-use old location in
+            // that case.
+            let mut slot_x = (slot.end_xy.as_ref())
+                .or(slot.start_xy.as_ref())
+                .map(|pos| pos.x);
+            let mut slot_y = (slot.end_xy.as_ref())
+                .or(slot.start_xy.as_ref())
+                .map(|pos| pos.y);
             for event in &report.events {
                 if event.time - self.last_ts >= EVENT_TIMEOUT {
                     reset = true;
@@ -289,13 +296,13 @@ impl TouchpadState {
                     EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
                         slot_x = Some(event.value);
                         if slot_y.is_some() {
-                            slot.push_position(slot_x.take().unwrap(), slot_y.take().unwrap());
+                            slot.push_position(slot_x.unwrap(), slot_y.unwrap());
                         }
                     }
                     EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y) => {
                         slot_y = Some(event.value);
                         if slot_x.is_some() {
-                            slot.push_position(slot_x.take().unwrap(), slot_y.take().unwrap());
+                            slot.push_position(slot_x.unwrap(), slot_y.unwrap());
                         }
                     }
 
