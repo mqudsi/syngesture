@@ -174,11 +174,9 @@ struct TouchpadState {
     pub last_gesture_time: f64,
     pub max_fingers: Option<Fingers>,
     pub last_finger: Option<Fingers>,
-    pub finger_start: Option<f64>,
-    pub one_finger_duration: f64,
-    pub two_finger_duration: f64,
-    pub three_finger_duration: f64,
-    pub four_finger_duration: f64,
+    pub gesture_start: Option<f64>,
+    pub gesture_end: Option<f64>,
+    pub with_btn_tool: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -230,11 +228,8 @@ impl TouchpadState {
         // self.last_gesture_time = 0f64;
         self.max_fingers = None;
         self.last_finger = None;
-        self.finger_start = None;
-        self.one_finger_duration = 0f64;
-        self.two_finger_duration = 0f64;
-        self.three_finger_duration = 0f64;
-        self.four_finger_duration = 0f64;
+        self.gesture_start = None;
+        self.gesture_end = None;
     }
 
     fn update(&mut self, report: &mut SynReport) -> Option<Gesture> {
@@ -244,7 +239,6 @@ impl TouchpadState {
 
         // Loop over events and handle each slot separately
         {
-            let prev_finger_start = self.finger_start;
             // A slot id is only specified if more than one tool is detected, so give `slot` a
             // default value in case we're not dealing with multi-touch gestures.
             let slot = &mut self.slot_states[0];
@@ -261,6 +255,7 @@ impl TouchpadState {
             let mut slot_y = (slot.end_xy.as_ref())
                 .or(slot.start_xy.as_ref())
                 .map(|pos| pos.y);
+
             for event in &report.events {
                 if event.time - self.last_ts >= EVENT_TIMEOUT {
                     reset = true;
@@ -309,53 +304,41 @@ impl TouchpadState {
                     // Finger state applied
                     EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if event.value == 1 => {
                         debug!("one finger press");
-                        self.finger_start = Some(event.time);
+                        self.with_btn_tool = true;
+                        self.gesture_start = Some(event.time);
                         self.last_finger.replace(Fingers::One);
                     }
                     EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP) if event.value == 1 => {
                         debug!("two finger press");
-                        self.finger_start = Some(event.time);
+                        self.with_btn_tool = true;
+                        self.gesture_start = Some(event.time);
                         self.last_finger.replace(Fingers::Two);
                     }
                     EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP) if event.value == 1 => {
                         debug!("three finger press");
-                        self.finger_start = Some(event.time);
+                        self.with_btn_tool = true;
+                        self.gesture_start = Some(event.time);
                         self.last_finger.replace(Fingers::Three);
                     }
                     EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP) if event.value == 1 => {
                         debug!("four finger press");
-                        self.finger_start = Some(event.time);
+                        self.with_btn_tool = true;
+                        self.gesture_start = Some(event.time);
                         self.last_finger.replace(Fingers::Four);
                     }
 
                     // Finger state removed
                     // Assuming we never miss an event, the finger should always have started
-                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if event.value == 0 => {
-                        if let Some(prev_finger_start) = prev_finger_start {
-                            debug!("one finger remove {}", event.time - prev_finger_start);
-                            self.one_finger_duration += event.time - prev_finger_start;
-                        }
-                        self.last_finger = None;
-                    }
-                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP) if event.value == 0 => {
-                        if let Some(prev_finger_start) = prev_finger_start {
-                            debug!("two finger remove {}", event.time - prev_finger_start);
-                            self.two_finger_duration += event.time - prev_finger_start;
-                        }
-                        self.last_finger = None;
-                    }
-                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP) if event.value == 0 => {
-                        if let Some(prev_finger_start) = prev_finger_start {
-                            debug!("three finger remove {}", event.time - prev_finger_start);
-                            self.three_finger_duration += event.time - prev_finger_start;
-                        }
-                        self.last_finger = None;
-                    }
-                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP) if event.value == 0 => {
-                        if let Some(prev_finger_start) = prev_finger_start {
-                            debug!("four finger remove {}", event.time - prev_finger_start);
-                            self.four_finger_duration += event.time - prev_finger_start;
-                        }
+                    EventCode::EV_KEY(
+                        EV_KEY::BTN_TOOL_FINGER
+                        | EV_KEY::BTN_TOOL_DOUBLETAP
+                        | EV_KEY::BTN_TOOL_TRIPLETAP
+                        | EV_KEY::BTN_TOOL_QUADTAP,
+                    ) if event.value == 0 && self.gesture_end.is_none() => {
+                        let max_fingers = self.max_fingers.map(|m| m as u8).unwrap_or(0);
+                        debug!("{} finger remove", max_fingers);
+                        self.with_btn_tool = true;
+                        self.gesture_end = Some(event.time);
                         self.last_finger = None;
                     }
 
@@ -379,6 +362,33 @@ impl TouchpadState {
             }
         }
 
+        // Magic Mouse doesn't report BTN_TOOL_FINGER, BTN_TOOL_DOUBLETAP, etc. so we need a
+        // fallback to track tool count.
+        // See issue #9 and https://www.kernel.org/doc/Documentation/input/event-codes.txt
+        if !report.events.is_empty() && !self.with_btn_tool {
+            let active_tools = self
+                .slot_states
+                .iter()
+                .filter(|s| s.as_ref().map(|s| !s.complete).unwrap_or(false))
+                .count();
+            let event_time = report.events.last().unwrap().time;
+            let max_finger_count = self.max_fingers.map(|f| f as usize).unwrap_or(0);
+            if active_tools > max_finger_count {
+                debug!("{} finger press (calculated)", active_tools);
+                self.gesture_start = Some(event_time);
+                self.last_finger = Some(match active_tools {
+                    1 => Fingers::One,
+                    2 => Fingers::Two,
+                    3 => Fingers::Three,
+                    _ => Fingers::Four,
+                });
+            } else if active_tools < max_finger_count && self.last_finger.is_some() {
+                debug!("{} finger remove (calculated)", max_finger_count);
+                self.last_finger = None;
+                self.gesture_end = Some(event_time);
+            }
+        }
+
         if reset {
             self.reset();
             return None;
@@ -395,11 +405,9 @@ impl TouchpadState {
         if overall_x.is_none() || overall_y.is_none() {
             // We can use the average of the positions as the overall location or we can just pick
             // a single tool and use that as a stand-in for our overall location.
-            let pos = self.slot_states.iter().find_map(|state| {
-                let Some(state) = state else {
-                    return None;
-                };
-                state.end_xy.as_ref().or(state.start_xy.as_ref())
+            let pos = self.slot_states.iter().find_map(|state| match state {
+                Some(state) => state.end_xy.as_ref().or(state.start_xy.as_ref()),
+                None => None,
             });
             if let Some(pos) = pos {
                 (overall_x, overall_y) = (Some(pos.x), Some(pos.y));
