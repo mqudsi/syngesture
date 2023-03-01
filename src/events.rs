@@ -189,6 +189,18 @@ struct SlotState {
 }
 
 impl SlotState {
+    pub fn has_pos(&self) -> bool {
+        self.start_xy.is_some()
+    }
+
+    /// Checks if a tool's `SlotState` indicates the tool is actually in use. Excludes a
+    /// `SlotState` that has not yet been assigned a position (to filter out the default
+    /// `SlotState` preemptively initialized to handle non-MT updates) and has not yet been marked
+    /// as completed (to filter out fingers that have been removed from the touchpad).
+    pub fn is_active(&self) -> bool {
+        self.has_pos() && !self.complete
+    }
+
     pub fn push_position(&mut self, x: i32, y: i32) {
         if self.start_xy.is_none() {
             self.start_xy = Some(pos(x, y));
@@ -369,7 +381,7 @@ impl TouchpadState {
             let active_tools = self
                 .slot_states
                 .iter()
-                .filter(|s| s.as_ref().map(|s| !s.complete).unwrap_or(false))
+                .filter(|s| s.as_ref().map(SlotState::is_active).unwrap_or(false))
                 .count();
             let event_time = report.events.last().unwrap().time;
             let max_finger_count = self.max_fingers.map(|f| f as usize).unwrap_or(0);
