@@ -245,13 +245,13 @@ impl TouchpadState {
         // Loop over events and handle each slot separately
         {
             let prev_finger_start = self.finger_start;
-            let mut slot = &mut self.slot_states[0];
-            #[allow(unused_assignments)]
-            let mut slot_id = 0usize;
-            // A slot id is only specified if more than one tool is detected.
+            // A slot id is only specified if more than one tool is detected, so give `slot` a
+            // default value in case we're not dealing with multi-touch gestures.
+            let slot = &mut self.slot_states[0];
             if slot.is_none() {
                 *slot = Some(Default::default());
             }
+            let mut slot = slot.as_mut().unwrap();
             let mut slot_x = None;
             let mut slot_y = None;
             for event in &report.events {
@@ -274,8 +274,8 @@ impl TouchpadState {
                         // This just tells us we're using a multitouch-capable trackpad and the
                         // id of the slot that contains information about the tool (finger) being
                         // tracked.
-                        slot_id = event.value as usize;
-                        slot = match self.slot_states.get_mut(slot_id) {
+                        let slot_id = event.value as usize;
+                        let s = match self.slot_states.get_mut(slot_id) {
                             Some(slot) => slot,
                             None => {
                                 info!("Maximum slot count increased to {}", slot_id + 1);
@@ -283,22 +283,19 @@ impl TouchpadState {
                                 self.slot_states.get_mut(slot_id).unwrap()
                             }
                         };
-                        *slot = Some(Default::default());
+                        *s = Some(Default::default());
+                        slot = s.as_mut().unwrap();
                     }
                     EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
                         slot_x = Some(event.value);
                         if slot_y.is_some() {
-                            slot.as_mut()
-                                .unwrap()
-                                .push_position(slot_x.take().unwrap(), slot_y.take().unwrap());
+                            slot.push_position(slot_x.take().unwrap(), slot_y.take().unwrap());
                         }
                     }
                     EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y) => {
                         slot_y = Some(event.value);
                         if slot_x.is_some() {
-                            slot.as_mut()
-                                .unwrap()
-                                .push_position(slot_x.take().unwrap(), slot_y.take().unwrap());
+                            slot.push_position(slot_x.take().unwrap(), slot_y.take().unwrap());
                         }
                     }
 
@@ -366,7 +363,7 @@ impl TouchpadState {
 
                     // Tracking complete event
                     EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID) if event.value == -1 => {
-                        slot.as_mut().unwrap().complete = true;
+                        slot.complete = true;
                     }
 
                     // Catch-all
