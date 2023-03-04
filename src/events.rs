@@ -177,6 +177,7 @@ struct TouchpadState {
     pub gesture_start: Option<f64>,
     pub gesture_end: Option<f64>,
     pub with_btn_tool: bool,
+    pub last_slot: Option<usize>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -253,7 +254,7 @@ impl TouchpadState {
         {
             // A slot id is only specified if more than one tool is detected, so give `slot` a
             // default value in case we're not dealing with multi-touch gestures.
-            let slot = &mut self.slot_states[0];
+            let slot = &mut self.slot_states[self.last_slot.unwrap_or(0)];
             if slot.is_none() {
                 *slot = Some(Default::default());
             }
@@ -299,6 +300,7 @@ impl TouchpadState {
                         };
                         *s = Some(Default::default());
                         slot = s.as_mut().unwrap();
+                        self.last_slot = Some(slot_id);
                     }
                     EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
                         slot_x = Some(event.value);
@@ -366,6 +368,7 @@ impl TouchpadState {
                     // Tracking complete event
                     EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID) if event.value == -1 => {
                         slot.complete = true;
+                        self.last_slot = None;
                     }
 
                     // Catch-all
