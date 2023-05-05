@@ -341,21 +341,6 @@ impl TouchpadState {
                         self.last_finger.replace(Fingers::Four);
                     }
 
-                    // Finger state removed
-                    // Assuming we never miss an event, the finger should always have started
-                    EventCode::EV_KEY(
-                        EV_KEY::BTN_TOOL_FINGER
-                        | EV_KEY::BTN_TOOL_DOUBLETAP
-                        | EV_KEY::BTN_TOOL_TRIPLETAP
-                        | EV_KEY::BTN_TOOL_QUADTAP,
-                    ) if event.value == 0 && self.gesture_end.is_none() => {
-                        let max_fingers = self.max_fingers.map(|m| m as u8).unwrap_or(0);
-                        debug!("{} finger remove", max_fingers);
-                        self.with_btn_tool = true;
-                        self.gesture_end = Some(event.time);
-                        self.last_finger = None;
-                    }
-
                     // Physical button press registered ("force touch")
                     EventCode::EV_KEY(EV_KEY::BTN_LEFT | EV_KEY::BTN_RIGHT) => {
                         // If any gesture ended up pressing hard enough to trigger a physical click
@@ -365,10 +350,21 @@ impl TouchpadState {
                         break;
                     }
 
-                    // Tracking complete event
+                    // Tracking of tool completed event
                     EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID) if event.value == -1 => {
                         slot.complete = true;
                         self.last_slot = None;
+
+                        let max_fingers = self.max_fingers.map(|m| m as u8).unwrap_or(0);
+                        debug!("{} finger remove", max_fingers);
+
+                        // We consider the gesture to be over when the first finger is removed.
+                        // Everything after that is considered to be tear-down.
+                        self.with_btn_tool = true;
+                        self.last_finger = None;
+                        if self.gesture_end.is_none() {
+                            self.gesture_end = Some(event.time);
+                        }
                     }
 
                     // Catch-all
