@@ -360,7 +360,8 @@ impl TouchpadState {
 
                         // We consider the gesture to be over when the first finger is removed.
                         // Everything after that is considered to be tear-down.
-                        self.with_btn_tool = true;
+
+                        // self.with_btn_tool = true;
                         self.last_finger = None;
                         if self.gesture_end.is_none() {
                             self.gesture_end = Some(event.time);
