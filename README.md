@@ -131,8 +131,8 @@ identified on your system if it differs:
 $ sudo usermod -aG input $(whoami)
 ```
 
-**You must log out completely then log back in (or just reboot) before this change will take
-effect.** You can then try running `syngestures` again and see what happens.
+**You must reboot before this change will take effect.** You can then try
+running `syngestures` again and see what happens.
 
 ## License
 
