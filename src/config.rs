@@ -41,15 +41,15 @@ impl Default for Action {
 }
 
 fn get_prefix() -> PathBuf {
-    PathBuf::from(PREFIX.unwrap_or("/usr/local"))
+    PathBuf::from(PREFIX.unwrap_or("/etc"))
 }
 
 pub(crate) fn config_dirs() -> Vec<String> {
     let prefix = get_prefix();
 
     vec![
-        format!("{}/etc/syngestures.toml", prefix.display()),
-        format!("{}/etc/syngestures.d/*.toml", prefix.display()),
+        format!("{}/syngestures.toml", prefix.display()),
+        format!("{}/syngestures.d/*.toml", prefix.display()),
         "$XDG_HOME/syngestures.toml".to_owned(),
         "$XDG_HOME/syngestures.d/*.toml".to_owned(),
         "$HOME/.config/syngestures.toml".to_owned(),
@@ -61,13 +61,13 @@ pub(crate) fn load() -> Configuration {
     let mut config = Configuration::new();
 
     let prefix = get_prefix();
-    let global_config = prefix.join("etc/syngestures.toml");
+    let global_config = prefix.join("syngestures.toml");
 
     if global_config.exists() {
         try_load_config_file(&mut config, &global_config);
     }
 
-    let global_config_dir = prefix.join("etc/syngestures.d");
+    let global_config_dir = prefix.join("syngestures.d");
     try_load_config_dir(&mut config, &global_config_dir);
 
     load_user_config(&mut config);
