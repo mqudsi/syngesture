@@ -13,6 +13,10 @@ use log::{debug, error, info, trace, warn};
 use std::io::ErrorKind;
 use std::os::fd::AsRawFd;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::JoinHandle;
+
+static SIGHUP: AtomicBool = AtomicBool::new(false);
 
 fn print_version<W: std::io::Write>(target: &mut W) {
     let _ = writeln!(
@@ -76,6 +80,10 @@ fn init_logger() {
     errorlog::init();
 }
 
+extern "C" fn on_sighup(_: libc::c_int) {
+    SIGHUP.store(true, Ordering::Relaxed);
+}
+
 fn main() {
     init_logger();
 
@@ -98,13 +106,34 @@ fn main() {
         }
     }
 
-    let config = config::load();
-
-    if config.devices.is_empty() {
-        error!("No configured devices");
-        std::process::exit(-1);
+    // Install a SIGHUP handler to tell us to reload the configuration file
+    unsafe {
+        libc::signal(libc::SIGHUP, on_sighup as libc::sighandler_t);
     }
 
+    loop {
+        let config = config::load();
+        if config.devices.is_empty() {
+            error!("No configured devices");
+            std::process::exit(-1);
+        }
+
+        let threads = watch_devices(config);
+        // This is fine for now, but ideally we need to detect a SIGHUP here, instead
+        // of waiting for all threads to wake from epoll then see SIGHUP.
+        for thread in threads {
+            _ = thread.join();
+        }
+
+        if SIGHUP.swap(false, Ordering::Relaxed) {
+            info!("Reloading after SIGHUP");
+            continue;
+        }
+        break;
+    }
+}
+
+fn watch_devices(config: config::Configuration) -> Vec<JoinHandle<()>> {
     let mut threads = Vec::new();
     for (device_path, gestures) in config.devices {
         let device = match EvDevice::new_from_path(&device_path) {
@@ -125,6 +154,10 @@ fn main() {
             let mut event_loop = EventLoop::new();
             let mut read_flag = ReadFlag::NORMAL;
             'device: loop {
+                if SIGHUP.load(Ordering::Relaxed) {
+                    debug!("Threading exiting because SIGHUP was set.");
+                    return;
+                }
                 let event = match device.next_event(read_flag) {
                     Ok((ReadStatus::Success, event)) => event,
                     Ok((
@@ -168,9 +201,7 @@ fn main() {
         threads.push(handle);
     }
 
-    for thread in threads {
-        thread.join().unwrap();
-    }
+    return threads;
 }
 
 fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
