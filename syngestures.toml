@@ -14,8 +14,10 @@ gestures = [
 	# Emulate right-click. Don't use this if two-finger tap to right-click already works
 	# { type = "tap", fingers = 2, execute = "xdotool click 3" },
 
-	# Emulate middle-click
+	# Emulate middle-click.
+	# The first *should* work but often doesn't; the second *does* but mainly in web browsers.
 	# { type = "tap", fingers = 3, execute = "xdotool click 2" },
+	# { type = "tap", fingers = 3, execute = "xdotool keydown Control click 1 keyup Control" },
 
 	# Navigate next
 	{ type = "swipe", direction = "right", fingers = 3, execute = "xdotool key alt+Right" },
