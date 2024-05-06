@@ -47,14 +47,20 @@ fn get_prefix() -> PathBuf {
 pub(crate) fn config_dirs() -> Vec<String> {
     let prefix = get_prefix();
 
-    vec![
+    let mut paths = vec![
+        "/etc/syngestures.toml".to_owned(),
+        "/etc/syngestures.d/*.toml".to_owned(),
         format!("{}/etc/syngestures.toml", prefix.display()),
         format!("{}/etc/syngestures.d/*.toml", prefix.display()),
         "$XDG_HOME/syngestures.toml".to_owned(),
         "$XDG_HOME/syngestures.d/*.toml".to_owned(),
         "$HOME/.config/syngestures.toml".to_owned(),
         "$HOME/.config/syngestures.d/*.toml".to_owned(),
-    ]
+    ];
+
+    // Deduplicate in case PREFIX is empty
+    paths.dedup();
+    paths
 }
 
 pub(crate) fn load() -> Configuration {
