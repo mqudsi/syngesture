@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_repr::*;
 
 /// The maximum travel before a tap is considered a swipe, in millimeters.
-const MAX_TAP_DISTANCE: f64 = 100f64;
+const MIN_SWIPE_DISTANCE: f64 = 100f64;
 /// The maximum number of tools (fingers) that are initially tracked and reported on simultaneously.
 const INITIAL_SLOTS: usize = 5;
 /// How long before the event state resets
@@ -482,7 +482,7 @@ impl TouchpadState {
         trace!("self.last_gesture_time: {}", self.last_gesture_time);
         if self.last_ts - self.last_gesture_time > DEBOUNCE_TIME {
             self.last_gesture_time = self.last_ts;
-            if distance < MAX_TAP_DISTANCE {
+            if distance < MIN_SWIPE_DISTANCE {
                 debug!("tap detected");
                 Some(Gesture::Tap { fingers })
             } else {
