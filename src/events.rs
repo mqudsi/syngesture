@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_repr::*;
 
 /// The maximum travel before a tap is considered a swipe.
-const MIN_SWIPE_DISTANCE: f64 = 100f64;
+const MIN_SWIPE_DISTANCE: f64 = 1000f64;
 /// The maximum number of tools (fingers) that are initially tracked and reported on simultaneously.
 const INITIAL_SLOTS: usize = 5;
 /// How long before the event state resets
