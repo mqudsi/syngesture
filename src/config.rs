@@ -186,8 +186,6 @@ fn load_config_dir(mut config: &mut Configuration, dir: &Path) -> Result<()> {
 }
 
 fn load_config_file(config: &mut Configuration, path: &Path) -> Result<()> {
-    use std::io::{Error, ErrorKind};
-
     #[derive(Deserialize)]
     struct ConfigGestureAndAction {
         #[serde(flatten)]
@@ -209,12 +207,8 @@ fn load_config_file(config: &mut Configuration, path: &Path) -> Result<()> {
     }
 
     let bytes = std::fs::read(path)?;
-    let toml_str = std::str::from_utf8(&bytes).map_err(|_| {
-        Error::new(
-            ErrorKind::Other,
-            format!("Invalid bytes in configuration file {}", path.display()),
-        )
-    })?;
+    let toml_str = std::str::from_utf8(&bytes)
+        .map_err(|_| format!("Invalid bytes in configuration file {}", path.display()))?;
     let config_file: ConfigFile = toml::from_str(&toml_str)?;
 
     for device_config in config_file.devices {
