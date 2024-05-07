@@ -89,6 +89,7 @@ pub(crate) fn load() -> Configuration {
     config
 }
 
+/// Call `load_config_file()` and print errors that include the config file path.
 fn try_load_config_file(config: &mut Configuration, path: &Path) {
     if let Err(e) = load_config_file(config, &path) {
         error!(
@@ -99,6 +100,7 @@ fn try_load_config_file(config: &mut Configuration, path: &Path) {
     }
 }
 
+/// Call `load_config_dir()` and print errors that include the dir path.
 fn try_load_config_dir(config: &mut Configuration, dir: &Path) {
     if let Err(e) = load_config_dir(config, &dir) {
         error!(
@@ -142,6 +144,8 @@ fn get_user_config_dir() -> Result<PathBuf> {
     Ok(config_home)
 }
 
+/// This function is only to be called through [`try_load_config_dir()`] which will log both the
+/// error and the directory we were enumerating when it was encountered.
 fn load_config_dir(mut config: &mut Configuration, dir: &Path) -> Result<()> {
     use std::fs::DirEntry;
 
@@ -185,6 +189,8 @@ fn load_config_dir(mut config: &mut Configuration, dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// This function is only to be called through [`try_load_config_file()`] which will log both the
+/// error and the config file we were loading when it was encountered.
 fn load_config_file(config: &mut Configuration, path: &Path) -> Result<()> {
     #[derive(Deserialize)]
     struct ConfigGestureAndAction {
@@ -208,7 +214,7 @@ fn load_config_file(config: &mut Configuration, path: &Path) -> Result<()> {
 
     let bytes = std::fs::read(path)?;
     let toml_str = std::str::from_utf8(&bytes)
-        .map_err(|_| format!("Invalid bytes in configuration file {}", path.display()))?;
+        .map_err(|_| "Invalid bytes in configuration file")?;
     let config_file: ConfigFile = toml::from_str(&toml_str)?;
 
     for device_config in config_file.devices {
