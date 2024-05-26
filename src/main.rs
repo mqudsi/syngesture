@@ -88,6 +88,7 @@ fn main() {
     init_logger();
 
     let args = std::env::args();
+    #[allow(clippy::never_loop)]
     for arg in args.skip(1) {
         match arg.as_str() {
             "-h" | "--help" => {
