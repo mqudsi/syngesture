@@ -109,7 +109,17 @@ fn main() {
 
     // Install a SIGHUP handler to tell us to reload the configuration file
     unsafe {
-        libc::signal(libc::SIGHUP, on_sighup as libc::sighandler_t);
+        let result = libc::signal(libc::SIGHUP, on_sighup as libc::sighandler_t);
+        assert_eq!(result, 0);
+    }
+
+    // Tell the kernel to reap child processes automatically and not require a wait(2) call.
+    // Note that this probably completely breaks waiting on child processes to complete!
+    unsafe {
+        let mut sa: libc::sigaction = std::mem::zeroed();
+        sa.sa_flags = libc::SA_NOCLDWAIT;
+        let result = libc::sigaction(libc::SIGCHLD, &sa as *const _, std::ptr::null_mut());
+        assert_eq!(result, 0);
     }
 
     loop {
@@ -218,20 +228,12 @@ fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
         Action::Execute(cmd) => {
             let mut shell = Command::new("sh");
             shell.args(["-c", cmd]);
-            let mut child = match shell.spawn() {
-                Ok(child) => child,
-                Err(e) => {
-                    error!("{e}");
-                    return;
-                }
+            // We have SA_NOCLDWAIT set up, so there's no need to wait for children to prevent
+            // zombies.
+            if let Err(err) = shell.spawn() {
+                error!("{err}");
+                return;
             };
-
-            // Spawn a thread to wait on the process to finish executing.
-            // This is only here to avoid zombie processes from piling up.
-            // TODO: Just have one thread wait on all launched processes.
-            std::thread::spawn(move || {
-                let _ = child.wait();
-            });
         }
     }
 }
