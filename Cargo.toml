@@ -1,6 +1,6 @@
 [package]
 name = "syngestures"
-version = "1.0.1"
+version = "2.0.0"
 authors = ["Mahmoud Al-Qudsi <mqudsi@neosmart.net>"]
 edition = "2018"
 description = "Configurable multi-touch gesture daemon for Linux, originally targeting `xf86-input-synaptics`."
@@ -8,7 +8,7 @@ readme = "README.md"
 homepage = "http://neosmart.net/blog/2020/multi-touch-gestures-on-linux/"
 repository = "https://github.com/mqudsi/syngesture"
 license = "MIT"
-keywords = [ "multi-touch", "gestures", "synaptics", "syngesture" ]
+keywords = [ "multi-touch", "gestures", "linux", "syngesture", "input" ]
 categories = [ "command-line-utilities", "os" ]
 
 [dependencies]
