@@ -444,7 +444,7 @@ impl TouchpadState {
             }
         }
 
-        return None;
+        None
     }
 
     pub fn push_position(&mut self, x: i32, y: i32) {
@@ -472,7 +472,7 @@ impl TouchpadState {
         };
 
         let distance = match &self.end_xy {
-            Some(end_xy) => get_distance(self.start_xy.as_ref().unwrap(), &end_xy),
+            Some(end_xy) => get_distance(self.start_xy.as_ref().unwrap(), end_xy),
             None => 0f64,
         };
 

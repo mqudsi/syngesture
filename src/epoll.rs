@@ -109,6 +109,6 @@ impl Epoll {
             }
             return (ev.events as i32 & libc::EPOLLIN) == libc::EPOLLIN;
         }
-        return false;
+        false
     }
 }

@@ -28,17 +28,14 @@ impl Configuration {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub(crate) enum Action {
     #[serde(skip)]
+    #[default]
     None,
     Execute(String),
 }
 
-impl Default for Action {
-    fn default() -> Self {
-        Action::None
-    }
-}
 
 fn get_prefix() -> PathBuf {
     PathBuf::from(PREFIX.unwrap_or("/usr/local"))
@@ -91,7 +88,7 @@ pub(crate) fn load() -> Configuration {
 
 /// Call `load_config_file()` and print errors that include the config file path.
 fn try_load_config_file(config: &mut Configuration, path: &Path) {
-    if let Err(e) = load_config_file(config, &path) {
+    if let Err(e) = load_config_file(config, path) {
         error!(
             "Error loading configuration file at {}: {}",
             path.display(),
@@ -102,7 +99,7 @@ fn try_load_config_file(config: &mut Configuration, path: &Path) {
 
 /// Call `load_config_dir()` and print errors that include the dir path.
 fn try_load_config_dir(config: &mut Configuration, dir: &Path) {
-    if let Err(e) = load_config_dir(config, &dir) {
+    if let Err(e) = load_config_dir(config, dir) {
         error!(
             "Error reading from configuration directory {}: {}",
             dir.display(),
@@ -111,7 +108,7 @@ fn try_load_config_dir(config: &mut Configuration, dir: &Path) {
     }
 }
 
-fn load_user_config(mut config: &mut Configuration) {
+fn load_user_config(config: &mut Configuration) {
     let config_home = match std::env::var_os("XDG_CONFIG_HOME") {
         Some(xdg_config_home) => PathBuf::from(xdg_config_home),
         None => match get_user_config_dir() {
@@ -125,11 +122,11 @@ fn load_user_config(mut config: &mut Configuration) {
 
     let user_config_file = config_home.join("syngestures.toml");
     if user_config_file.exists() {
-        try_load_config_file(&mut config, &user_config_file);
+        try_load_config_file(config, &user_config_file);
     }
 
     let user_config_dir = config_home.join("syngestures.d");
-    try_load_config_dir(&mut config, &user_config_dir);
+    try_load_config_dir(config, &user_config_dir);
 }
 
 fn get_user_config_dir() -> Result<PathBuf> {
@@ -146,7 +143,7 @@ fn get_user_config_dir() -> Result<PathBuf> {
 
 /// This function is only to be called through [`try_load_config_dir()`] which will log both the
 /// error and the directory we were enumerating when it was encountered.
-fn load_config_dir(mut config: &mut Configuration, dir: &Path) -> Result<()> {
+fn load_config_dir(config: &mut Configuration, dir: &Path) -> Result<()> {
     use std::fs::DirEntry;
 
     if !dir.exists() || !dir.is_dir() {
@@ -177,7 +174,7 @@ fn load_config_dir(mut config: &mut Configuration, dir: &Path) -> Result<()> {
                 return Ok(());
             }
 
-            try_load_config_file(&mut config, &item);
+            try_load_config_file(config, &item);
             Ok(())
         };
 
@@ -215,7 +212,7 @@ fn load_config_file(config: &mut Configuration, path: &Path) -> Result<()> {
     let bytes = std::fs::read(path)?;
     let toml_str = std::str::from_utf8(&bytes)
         .map_err(|_| "Invalid bytes in configuration file")?;
-    let config_file: ConfigFile = toml::from_str(&toml_str)?;
+    let config_file: ConfigFile = toml::from_str(toml_str)?;
 
     for device_config in config_file.devices {
         let device = device_config.device;

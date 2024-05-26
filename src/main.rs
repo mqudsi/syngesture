@@ -201,7 +201,7 @@ fn watch_devices(config: config::Configuration) -> Vec<JoinHandle<()>> {
         threads.push(handle);
     }
 
-    return threads;
+    threads
 }
 
 fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
@@ -216,7 +216,7 @@ fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
         Action::None => {}
         Action::Execute(cmd) => {
             let mut shell = Command::new("sh");
-            shell.args(&["-c", cmd]);
+            shell.args(["-c", cmd]);
             let mut child = match shell.spawn() {
                 Ok(child) => child,
                 Err(e) => {

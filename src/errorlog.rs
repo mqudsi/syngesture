@@ -1,7 +1,7 @@
 struct ErrorLog {}
 static LOG: ErrorLog = ErrorLog {};
 
-pub fn init() -> () {
+pub fn init() {
     log::set_logger(&LOG as &dyn log::Log).unwrap();
     log::set_max_level(log::LevelFilter::Error);
 }
