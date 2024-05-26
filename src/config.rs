@@ -36,7 +36,6 @@ pub(crate) enum Action {
     Execute(String),
 }
 
-
 fn get_prefix() -> PathBuf {
     PathBuf::from(PREFIX.unwrap_or("/usr/local"))
 }
@@ -210,8 +209,8 @@ fn load_config_file(config: &mut Configuration, path: &Path) -> Result<()> {
     }
 
     let bytes = std::fs::read(path)?;
-    let toml_str = std::str::from_utf8(&bytes)
-        .map_err(|_| "Invalid bytes in configuration file")?;
+    let toml_str =
+        std::str::from_utf8(&bytes).map_err(|_| "Invalid bytes in configuration file")?;
     let config_file: ConfigFile = toml::from_str(toml_str)?;
 
     for device_config in config_file.devices {

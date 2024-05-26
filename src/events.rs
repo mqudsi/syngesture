@@ -48,8 +48,7 @@ impl EventLoop {
                 let time = time.tv_sec as f64 + time.tv_usec as f64 * 1E-6;
                 self.report.events.push(SynEvent {
                     time,
-                    evt_type: EventType::EV_ABS,
-                    code: code as u16,
+                    event: EvdevEvent::Abs(code),
                     value: event_value,
                 });
                 None
@@ -59,8 +58,7 @@ impl EventLoop {
                 let time = time.tv_sec as f64 + time.tv_usec as f64 * 1E-6;
                 self.report.events.push(SynEvent {
                     time,
-                    evt_type: EventType::EV_KEY,
-                    code: code as u16,
+                    event: EvdevEvent::Key(code),
                     value: event_value,
                 });
                 None
@@ -94,13 +92,18 @@ pub(crate) enum Fingers {
     Four = 4,
 }
 
+#[derive(Debug, PartialEq)]
+enum EvdevEvent {
+    Abs(EV_ABS),
+    Key(EV_KEY),
+}
+
 // Used to abstract away the event source. In the future, we can migrate from
 // using evtest to reading from the input device directly.
 #[derive(Debug, PartialEq)]
 struct SynEvent {
     time: f64,
-    evt_type: EventType,
-    code: u16,
+    event: EvdevEvent,
     value: i32,
 }
 
@@ -276,16 +279,16 @@ impl TouchpadState {
                 }
                 self.last_ts = event.time;
 
-                match int_to_event_code(event.evt_type, event.code) {
-                    EventCode::EV_ABS(EV_ABS::ABS_X) => {
+                match event.event {
+                    EvdevEvent::Abs(EV_ABS::ABS_X) => {
                         // Overall location, regardless of tool
                         overall_x = Some(event.value);
                     }
-                    EventCode::EV_ABS(EV_ABS::ABS_Y) => {
+                    EvdevEvent::Abs(EV_ABS::ABS_Y) => {
                         // Overall location, regardless of tool
                         overall_y = Some(event.value);
                     }
-                    EventCode::EV_ABS(EV_ABS::ABS_MT_SLOT) => {
+                    EvdevEvent::Abs(EV_ABS::ABS_MT_SLOT) => {
                         // This just tells us we're using a multitouch-capable trackpad and the
                         // id of the slot that contains information about the tool (finger) being
                         // tracked.
@@ -302,13 +305,13 @@ impl TouchpadState {
                         slot = s.as_mut().unwrap();
                         self.last_slot = Some(slot_id);
                     }
-                    EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
+                    EvdevEvent::Abs(EV_ABS::ABS_MT_POSITION_X) => {
                         slot_x = Some(event.value);
                         if let Some(slot_y) = slot_y {
                             slot.push_position(slot_x.unwrap(), slot_y);
                         }
                     }
-                    EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y) => {
+                    EvdevEvent::Abs(EV_ABS::ABS_MT_POSITION_Y) => {
                         slot_y = Some(event.value);
                         if let Some(slot_x) = slot_x {
                             slot.push_position(slot_x, slot_y.unwrap());
@@ -316,25 +319,25 @@ impl TouchpadState {
                     }
 
                     // Finger state applied
-                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if event.value == 1 => {
+                    EvdevEvent::Key(EV_KEY::BTN_TOOL_FINGER) if event.value == 1 => {
                         debug!("one finger press");
                         self.with_btn_tool = true;
                         self.gesture_start = Some(event.time);
                         self.last_finger.replace(Fingers::One);
                     }
-                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_DOUBLETAP) if event.value == 1 => {
+                    EvdevEvent::Key(EV_KEY::BTN_TOOL_DOUBLETAP) if event.value == 1 => {
                         debug!("two finger press");
                         self.with_btn_tool = true;
                         self.gesture_start = Some(event.time);
                         self.last_finger.replace(Fingers::Two);
                     }
-                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_TRIPLETAP) if event.value == 1 => {
+                    EvdevEvent::Key(EV_KEY::BTN_TOOL_TRIPLETAP) if event.value == 1 => {
                         debug!("three finger press");
                         self.with_btn_tool = true;
                         self.gesture_start = Some(event.time);
                         self.last_finger.replace(Fingers::Three);
                     }
-                    EventCode::EV_KEY(EV_KEY::BTN_TOOL_QUADTAP) if event.value == 1 => {
+                    EvdevEvent::Key(EV_KEY::BTN_TOOL_QUADTAP) if event.value == 1 => {
                         debug!("four finger press");
                         self.with_btn_tool = true;
                         self.gesture_start = Some(event.time);
@@ -342,7 +345,7 @@ impl TouchpadState {
                     }
 
                     // Physical button press registered ("force touch")
-                    EventCode::EV_KEY(EV_KEY::BTN_LEFT | EV_KEY::BTN_RIGHT) => {
+                    EvdevEvent::Key(EV_KEY::BTN_LEFT | EV_KEY::BTN_RIGHT) => {
                         // If any gesture ended up pressing hard enough to trigger a physical click
                         // event, discard all the events in the report altogether.
                         debug!("disregarding gesture that included a physical button press");
@@ -351,7 +354,7 @@ impl TouchpadState {
                     }
 
                     // Tracking of tool completed event
-                    EventCode::EV_ABS(EV_ABS::ABS_MT_TRACKING_ID) if event.value == -1 => {
+                    EvdevEvent::Abs(EV_ABS::ABS_MT_TRACKING_ID) if event.value == -1 => {
                         slot.complete = true;
                         self.last_slot = None;
 
@@ -499,15 +502,5 @@ impl TouchpadState {
             debug!("Gesture ignored by debounce");
             None
         }
-    }
-}
-
-fn int_to_event_code(ev_type: EventType, ev_code: u16) -> EventCode {
-    // Since we converted the enum to a u16 in the first place, it is perfectly safe
-    // to change it back as we know it'll be within the expected range of values.
-    match ev_type {
-        EventType::EV_ABS => EventCode::EV_ABS(unsafe { std::mem::transmute(ev_code as u8) }),
-        EventType::EV_KEY => EventCode::EV_KEY(unsafe { std::mem::transmute(ev_code as u16) }),
-        _ => unimplemented!(),
     }
 }
