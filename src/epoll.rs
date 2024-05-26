@@ -2,13 +2,13 @@ use std::io::{Error, Result};
 use std::os::unix::prelude::*;
 use std::time::Duration;
 
-pub struct Epoll {
+pub(crate) struct Epoll {
     fd: OwnedFd,
     events: Vec<libc::epoll_event>,
     next_key: u64,
 }
 
-pub struct Token {
+pub(crate) struct Token {
     fd: RawFd,
     key: u64,
 }
@@ -88,7 +88,7 @@ impl Epoll {
 
         let result = syscall!(epoll_wait(
             self.fd.as_raw_fd(),
-            self.events.as_mut_ptr() as *mut libc::epoll_event,
+            self.events.as_mut_ptr(),
             self.events.capacity() as i32,
             timeout.map(|d| d.as_millis() as i32).unwrap_or(-1),
         ));
