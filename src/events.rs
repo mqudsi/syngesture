@@ -304,14 +304,14 @@ impl TouchpadState {
                     }
                     EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
                         slot_x = Some(event.value);
-                        if slot_y.is_some() {
-                            slot.push_position(slot_x.unwrap(), slot_y.unwrap());
+                        if let Some(slot_y) = slot_y {
+                            slot.push_position(slot_x.unwrap(), slot_y);
                         }
                     }
                     EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y) => {
                         slot_y = Some(event.value);
-                        if slot_x.is_some() {
-                            slot.push_position(slot_x.unwrap(), slot_y.unwrap());
+                        if let Some(slot_x) = slot_x {
+                            slot.push_position(slot_x, slot_y.unwrap());
                         }
                     }
 
