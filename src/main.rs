@@ -20,7 +20,7 @@ static SIGHUP: AtomicBool = AtomicBool::new(false);
 fn print_version<W: std::io::Write>(target: &mut W) {
     let _ = writeln!(
         target,
-        "syngestures {} - Copyright NeoSmart Technologies 2020-2022",
+        "syngestures {} - Copyright NeoSmart Technologies 2020-2024",
         env!("CARGO_PKG_VERSION")
     );
 
