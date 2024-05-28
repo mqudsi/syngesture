@@ -14,7 +14,6 @@ use std::io::ErrorKind;
 use std::os::fd::AsRawFd;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread::JoinHandle;
 
 static SIGHUP: AtomicBool = AtomicBool::new(false);
 
@@ -129,12 +128,15 @@ fn main() {
             std::process::exit(-1);
         }
 
-        let threads = watch_devices(config);
-        // This is fine for now, but ideally we need to detect a SIGHUP here, instead
-        // of waiting for all threads to wake from epoll then see SIGHUP.
-        for thread in threads {
-            _ = thread.join();
-        }
+        std::thread::scope(|scope| {
+            watch_devices(scope, config);
+
+            // We hang here until all device watcher threads have terminated.
+            // That's OK for now, but in case of SIGHUP the worker threads won't notice the signal
+            // until they wake after receiving an epoll(7) event.
+            // TODO: Give the threads a binary semaphore to add their epoll queue and signal it in
+            // our own SIGHUP handler so they wake immediately.
+        });
 
         if SIGHUP.swap(false, Ordering::Relaxed) {
             info!("Reloading after SIGHUP");
@@ -144,8 +146,10 @@ fn main() {
     }
 }
 
-fn watch_devices(config: config::Configuration) -> Vec<JoinHandle<()>> {
-    let mut threads = Vec::new();
+fn watch_devices<'scope>(
+    scope: &'scope std::thread::Scope<'scope, '_>,
+    config: config::Configuration,
+) {
     for (device_path, gestures) in config.devices {
         let device = match EvDevice::new_from_path(&device_path) {
             Ok(device) => device,
@@ -155,7 +159,7 @@ fn watch_devices(config: config::Configuration) -> Vec<JoinHandle<()>> {
             }
         };
         let device_fd = device.file().as_raw_fd();
-        let handle = std::thread::spawn(move || {
+        scope.spawn(move || {
             use evdev_rs::enums::*;
             use evdev_rs::{InputEvent, ReadFlag, ReadStatus};
 
@@ -209,10 +213,7 @@ fn watch_devices(config: config::Configuration) -> Vec<JoinHandle<()>> {
                 }
             }
         });
-        threads.push(handle);
     }
-
-    threads
 }
 
 fn swipe_handler(gestures: &config::GestureMap, gesture: Gesture) {
