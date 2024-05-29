@@ -109,7 +109,15 @@ fn main() {
     // Install a SIGHUP handler to tell us to reload the configuration file
     unsafe {
         let result = libc::signal(libc::SIGHUP, on_sighup as libc::sighandler_t);
-        assert_eq!(result, 0);
+        if result != 0 {
+            match std::io::Error::last_os_error().raw_os_error() {
+                Some(errno) if errno == libc::ENOTTY => {
+                    debug!("ENOTTY installing SIGHUP handler; expected if running under `nohup`");
+                }
+                Some(errno) => warn!("Unable to install SIGHUP handler! Error {errno}"),
+                _ => warn!("Unable to install SIGHUP handler!"),
+            }
+        }
     }
 
     // Tell the kernel to reap child processes automatically and not require a wait(2) call.
