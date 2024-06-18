@@ -68,6 +68,7 @@ fn print_help<W: std::io::Write>(target: &mut W) {
 
 #[cfg(feature = "logging")]
 fn init_logger() {
+    #[cfg(debug_assertions)]
     if std::env::var_os("RUST_LOG").is_none() {
         std::env::set_var("RUST_LOG", "trace");
     }
