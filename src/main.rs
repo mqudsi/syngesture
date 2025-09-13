@@ -182,7 +182,10 @@ fn watch_devices<'scope>(
                     debug!("Threading exiting because SIGHUP was set.");
                     return;
                 }
-                let event = match device.next_event(read_flag) {
+                // Work around evdev-rs bug (?) removing `Copy` and `Clone` from `ReadFlag`
+                // https://github.com/ndesh26/evdev-rs/issues/116
+                let read_flag_clone = ReadFlag::from_bits(read_flag.bits()).unwrap();
+                let event = match device.next_event(read_flag_clone) {
                     Ok((ReadStatus::Success, event)) => event,
                     Ok((
                         ReadStatus::Sync,
